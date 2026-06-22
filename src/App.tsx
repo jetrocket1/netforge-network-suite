@@ -89,7 +89,6 @@ const WORKSPACE_REGISTRY = [
       { id: 'headerInspector', label: '🔄 Packets vs. Frames', component: unpack(HeaderModule, 'HeaderInspector'), name: 'HeaderInspector' },
       { id: 'protocolMapper', label: '🔄 Protocol Data Units', component: unpack(ProtocolModule, 'ProtocolMapper'), name: 'ProtocolMapper' },
       { id: 'icmpLab', label: '🛰️ How Ping Works', component: unpack(IcmpModule, 'IcmpLab'), name: 'IcmpLab' },
-      // Added: Wireless-to-Wired boundary path tool under Fundamentals
       { id: 'wirelessToWired', label: '🔌 Wireless-to-Wired Path', component: unpack(WirelessToWiredModule, 'WirelessToWiredLab'), name: 'WirelessToWiredLab' },
     ]
   },
@@ -181,7 +180,20 @@ export default function App() {
 
   const [isDarkMode, setIsDarkMode] = useState<boolean>(true);
 
+  // --- DYNAMIC BROWSER TAB TITLE MANAGEMENT ---
   useEffect(() => {
+    const currentCatObj = WORKSPACE_REGISTRY.find(c => c.catId === activeCategory);
+    const currentToolObj = currentCatObj?.tools.find(t => t.id === activeTool);
+
+    if (currentToolObj) {
+      // Strips explicit emojis from labels cleanly for clean browser presentation
+      const plainLabel = currentToolObj.label.replace(/[\uE000-\uF8FF]|\uD83C[\uDC00-\uDFFF]|\uD83D[\uDC00-\uDFFF]|[\u2011-\u26FF]|\uD83E[\uDD10-\uDDFF]/g, '').trim();
+      document.title = `${plainLabel} | Netforge`;
+    } else {
+      document.title = 'Netforge | System Architect Suite';
+    }
+
+    // Preserve search params configuration history stack safely
     const url = new URL(window.location.href);
     url.searchParams.set('cat', activeCategory);
     url.searchParams.set('tool', activeTool);
