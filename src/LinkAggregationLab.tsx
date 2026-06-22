@@ -15,7 +15,7 @@ export const LinkAggregationLab: React.FC<LinkAggregationLabProps> = ({ isDarkMo
   
   const [log, setLog] = useState<string>('Standard STP topology active. 1 link forwarding, remaining links are BLOCKED to prevent loops.');
 
-  const timeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const timeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const styles = {
     cardBg: isDarkMode ? '#111827' : '#ffffff',

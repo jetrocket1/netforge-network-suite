@@ -193,7 +193,8 @@ export const SubnetSplitter: React.FC<SubnetSplitterProps> = ({ isDarkMode = tru
 
       {/* Topology Map */}
       <div style={{ marginBottom: '2.5rem' }}>
-        <span style={{ display: 'block', fontSize: '0.8rem', fontWeight: 800, color: isDarkMode ? '#cbd5e1' : '#475569', tracking: '0.05em', textTransform: 'uppercase', marginBottom: '0.75rem' }}>
+        {/* FIXED: Swapped out broken tracking tag with standard React letterSpacing key */}
+        <span style={{ display: 'block', fontSize: '0.8rem', fontWeight: 800, color: isDarkMode ? '#cbd5e1' : '#475569', letterSpacing: '0.05em', textTransform: 'uppercase', marginBottom: '0.75rem' }}>
           🗺️ Live Address Allocation Space Topology Map
         </span>
         
@@ -326,3 +327,5 @@ export const SubnetSplitter: React.FC<SubnetSplitterProps> = ({ isDarkMode = tru
     </div>
   );
 };
+
+export default SubnetSplitter;
