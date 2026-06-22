@@ -44,7 +44,8 @@ const ResultCard: React.FC<ResultCardProps> = ({ label, value, icon, isHighlight
     }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.5rem' }}>
         <span style={{ fontSize: '1.1rem' }}>{icon}</span>
-        <span style={{ fontSize: '0.75rem', fontWeight: 700, color: labelText, tracking: '0.05em', textTransform: 'uppercase' }}>
+        {/* FIXED: Swapped 'tracking' for 'letterSpacing' */}
+        <span style={{ fontSize: '0.75rem', fontWeight: 700, color: labelText, letterSpacing: '0.05em', textTransform: 'uppercase' }}>
           {label}
         </span>
       </div>
@@ -95,11 +96,11 @@ export const SubnetCalculator: React.FC<SubnetCalculatorProps> = ({ isDarkMode =
     if (!isValidCheckIp) return isDarkMode ? { bg: '#1e293b', border: '#334155', text: '#cbd5e1' } : { bg: '#f1f5f9', border: '#cbd5e1', text: '#334155' };
     if (isMatch) {
       return isDarkMode 
-        ? { bg: '#064e3b', border: '#10b981', text: '#a7f3d0' } // Deep rich emerald matrix on dark background
+        ? { bg: '#064e3b', border: '#10b981', text: '#a7f3d0' } 
         : { bg: '#dcfce7', border: '#4ade80', text: '#14532d' };
     } else {
       return isDarkMode 
-        ? { bg: '#7f1d1d', border: '#f43f5e', text: '#fecaca' } // Deep high-contrast crimson on dark background
+        ? { bg: '#7f1d1d', border: '#f43f5e', text: '#fecaca' } 
         : { bg: '#fee2e2', border: '#f87171', text: '#7f1d1d' };
     }
   };
@@ -268,7 +269,8 @@ export const SubnetCalculator: React.FC<SubnetCalculatorProps> = ({ isDarkMode =
           }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '1.25rem' }}>
               <span style={{ fontSize: '1.2rem' }}>🔍</span>
-              <span style={{ fontSize: '0.85rem', fontWeight: 800, color: isDarkMode ? '#f8fafc' : '#1e293b', tracking: '0.05em', textTransform: 'uppercase' }}>
+              {/* FIXED: Swapped second instance of 'tracking' for 'letterSpacing' */}
+              <span style={{ fontSize: '0.85rem', fontWeight: 800, color: isDarkMode ? '#f8fafc' : '#1e293b', letterSpacing: '0.05em', textTransform: 'uppercase' }}>
                 IP Range Boundary Validation Matcher
               </span>
             </div>
@@ -357,3 +359,5 @@ export const SubnetCalculator: React.FC<SubnetCalculatorProps> = ({ isDarkMode =
     </div>
   );
 };
+
+export default SubnetCalculator;

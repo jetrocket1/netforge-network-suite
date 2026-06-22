@@ -55,7 +55,6 @@ export const Layer2SecurityLab: React.FC<Layer2SecurityLabProps> = ({ isDarkMode
         setPsLog('✅ Source MAC AA:BB:CC:11:22 matches Sticky MAC. Frame forwarded.');
         setTimeout(() => setPsAnimState('IDLE'), 1500);
       } else {
-        // Rogue Device Logic
         if (violationMode === 'shutdown') {
           setPsAnimState('DROPPED');
           setPortStatus('ERR_DISABLED');
@@ -91,29 +90,31 @@ export const Layer2SecurityLab: React.FC<Layer2SecurityLabProps> = ({ isDarkMode
     setSnoopLog(`[${sender} SERVER] Generating DHCP_OFFER packet...`);
 
     setTimeout(() => {
-      // Packet has hit the switch. Evaluate Trust.
       const isTrusted = sender === 'LEGIT' ? port24Trusted : port2Trusted;
       
       if (isTrusted) {
-        setSnoopLog(`⚠️ Switch evaluated Port: TRUSTED. Forwarding payload to Victim PC!`);
+        if (port1Trusted) {
+          setSnoopLog('⚠️ Fa0/1 is TRUSTED. Forwarding payload to Victim PC!');
+        } else {
+          setSnoopLog('🔒 Fa0/1 is UNTRUSTED client port. Forwarding offer packet securely down to host node.');
+        }
         setSnoopAnimPhase('TO_PC');
         
         setTimeout(() => {
           setVictimIp(sender === 'LEGIT' ? '10.0.0.50' : '192.168.99.50');
           setSnoopAnimPhase('IDLE');
           setSnoopLog(sender === 'LEGIT' 
-            ? `✅ PC successfully configured with Corporate IP.` 
-            : `💀 MITM SUCCESS: PC Gateway hijacked by Rogue Server!`);
+            ? '✅ PC successfully configured with Corporate IP.' 
+            : '💀 MITM SUCCESS: PC Gateway hijacked by Rogue Server!');
         }, 800);
 
       } else {
-        setSnoopLog(`🛡️ Switch evaluated Port: UNTRUSTED. Malicious DHCP_OFFER dropped!`);
+        setSnoopLog('🛡️ Switch evaluated Port: UNTRUSTED. Malicious DHCP_OFFER dropped!');
         setSnoopAnimPhase('DROPPED');
         setTimeout(() => setSnoopAnimPhase('IDLE'), 1500);
       }
     }, 800);
   };
-
 
   return (
     <div style={{ padding: '2rem', backgroundColor: styles.cardBg, borderRadius: '12px', border: styles.border, color: styles.textPrimary, fontFamily: 'system-ui, sans-serif', overflow: 'hidden' }}>
@@ -128,17 +129,12 @@ export const Layer2SecurityLab: React.FC<Layer2SecurityLabProps> = ({ isDarkMode
         <button onClick={() => setActiveTab('SNOOPING')} style={{ flex: 1, padding: '12px', fontSize: '0.8rem', fontWeight: 'bold', border: 'none', borderRadius: '6px', cursor: 'pointer', backgroundColor: activeTab === 'SNOOPING' ? '#10b981' : 'transparent', color: activeTab === 'SNOOPING' ? '#fff' : styles.textMuted }}>🕵️ DHCP Snooping</button>
       </div>
 
-      {/* ========================================== */}
-      {/* TAB 1: PORT SECURITY */}
-      {/* ========================================== */}
+      {/* --- TAB 1: PORT SECURITY --- */}
       {activeTab === 'PORT_SEC' && (
         <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
-          
-          {/* ANIMATION CANVAS */}
           <div style={{ backgroundColor: '#05070f', border: `1px solid ${portStatus === 'ERR_DISABLED' ? '#f43f5e' : '#1e293b'}`, padding: '3rem 1rem', borderRadius: '12px', position: 'relative' }}>
             <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '0', position: 'relative', width: '100%', maxWidth: '600px', margin: '0 auto' }}>
               
-              {/* PC NODE */}
               <div style={{ zIndex: 2, padding: '15px', borderRadius: '8px', backgroundColor: pluggedDevice === 'LEGIT' ? '#0f172a' : '#2a0f15', border: `2px solid ${pluggedDevice === 'LEGIT' ? styles.accent : '#f43f5e'}` }}>
                 <div style={{ fontSize: '2.5rem' }}>{pluggedDevice === 'LEGIT' ? '💻' : '🦹‍♂️'}</div>
                 <div style={{ fontSize: '0.75rem', fontWeight: 'bold', marginTop: '4px', color: pluggedDevice === 'LEGIT' ? styles.accent : '#f43f5e', textAlign: 'center' }}>
@@ -146,14 +142,12 @@ export const Layer2SecurityLab: React.FC<Layer2SecurityLabProps> = ({ isDarkMode
                 </div>
               </div>
 
-              {/* WIRE LANE */}
               <div style={{ flex: 1, position: 'relative', height: '6px', backgroundColor: portStatus === 'UP' ? '#334155' : '#4a0f15', margin: '0 -10px', zIndex: 1 }}>
                 {portStatus === 'ERR_DISABLED' && (
                   <div style={{ position: 'absolute', top: '-25px', left: '50%', transform: 'translateX(-50%)', backgroundColor: '#f43f5e', color: '#fff', fontSize: '0.65rem', padding: '4px 8px', borderRadius: '4px', fontWeight: 'bold' }}>ERR-DISABLED</div>
                 )}
 
-                {/* ANIMATED PACKET */}
-                {(psAnimState !== 'IDLE') && (
+                {psAnimState !== 'IDLE' && (
                   <div style={{
                     position: 'absolute', top: '-10px', width: '26px', height: '26px', backgroundColor: pluggedDevice === 'LEGIT' ? '#06b6d4' : '#f43f5e', borderRadius: '4px', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '0.6rem', color: '#fff', fontWeight: 'bold',
                     transition: 'all 0.8s linear',
@@ -164,13 +158,11 @@ export const Layer2SecurityLab: React.FC<Layer2SecurityLabProps> = ({ isDarkMode
                   }}>📦</div>
                 )}
 
-                {/* DROPPED EXPLOSION INDICATOR */}
                 {psAnimState === 'DROPPED' && (
                   <div style={{ position: 'absolute', top: '-20px', right: '-10px', fontSize: '2rem' }}>💥</div>
                 )}
               </div>
 
-              {/* SWITCH NODE */}
               <div style={{ zIndex: 2, padding: '15px', borderRadius: '8px', backgroundColor: '#0f172a', border: '2px solid #334155', textAlign: 'center' }}>
                 <div style={{ fontSize: '2.5rem' }}>🎛️</div>
                 <div style={{ fontSize: '0.75rem', fontWeight: 'bold', marginTop: '4px' }}>Fa0/1</div>
@@ -182,6 +174,7 @@ export const Layer2SecurityLab: React.FC<Layer2SecurityLabProps> = ({ isDarkMode
 
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: '1.5rem' }}>
             <div style={{ backgroundColor: styles.setupBg, padding: '1.5rem', borderRadius: '8px', display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+              {/* FIXED: Colon added back to object property assignment */}
               <span style={{ display: 'block', fontSize: '0.7rem', fontWeight: 800, color: styles.textMuted, textTransform: 'uppercase', borderBottom: '1px solid rgba(255,255,255,0.05)', paddingBottom: '6px' }}>1. Config & Actions</span>
               
               <div style={{ display: 'flex', gap: '4px' }}>
@@ -220,17 +213,12 @@ export const Layer2SecurityLab: React.FC<Layer2SecurityLabProps> = ({ isDarkMode
         </div>
       )}
 
-      {/* ========================================== */}
-      {/* TAB 2: DHCP SNOOPING */}
-      {/* ========================================== */}
+      {/* --- TAB 2: DHCP SNOOPING --- */}
       {activeTab === 'SNOOPING' && (
         <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
-          
-          {/* ANIMATION CANVAS */}
-          <div style={{ backgroundColor: '#05070f', border: `1px solid #1e293b`, padding: '2rem 1rem', borderRadius: '12px', position: 'relative', overflow: 'hidden' }}>
+          <div style={{ backgroundColor: '#05070f', border: '1px solid #1e293b', padding: '2rem 1rem', borderRadius: '12px', position: 'relative', overflow: 'hidden' }}>
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '40px', justifyContent: 'center', margin: '0 auto', maxWidth: '600px', position: 'relative' }}>
               
-              {/* ROGUE SERVER (Top Left) */}
               <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', zIndex: 2 }}>
                 <div style={{ padding: '15px', borderRadius: '8px', backgroundColor: '#2a0f15', border: '2px solid #f43f5e', textAlign: 'center', position: 'relative' }}>
                   <div style={{ fontSize: '2rem' }}>🦹‍♂️</div>
@@ -239,7 +227,6 @@ export const Layer2SecurityLab: React.FC<Layer2SecurityLabProps> = ({ isDarkMode
                 </div>
               </div>
 
-              {/* LEGIT SERVER (Top Right) */}
               <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', zIndex: 2 }}>
                 <div style={{ padding: '15px', borderRadius: '8px', backgroundColor: '#0f2a1a', border: '2px solid #10b981', textAlign: 'center', position: 'relative' }}>
                   <div style={{ fontSize: '2rem' }}>🗄️</div>
@@ -248,13 +235,11 @@ export const Layer2SecurityLab: React.FC<Layer2SecurityLabProps> = ({ isDarkMode
                 </div>
               </div>
 
-              {/* CENTRAL SWITCH (Middle Center) */}
               <div style={{ gridColumn: 'span 2', display: 'flex', justifyContent: 'center', margin: '30px 0', zIndex: 2 }}>
                 <div style={{ padding: '20px 40px', borderRadius: '8px', backgroundColor: '#0f172a', border: '2px solid #334155', textAlign: 'center', position: 'relative' }}>
                   <div style={{ fontSize: '2rem' }}>🎛️</div>
                   <div style={{ fontSize: '0.75rem', fontWeight: 'bold' }}>Core Switch (Snooping ON)</div>
                   
-                  {/* Packet from Rogue to Switch */}
                   {snoopSender === 'ROGUE' && snoopAnimPhase !== 'IDLE' && (
                     <div style={{
                       position: 'absolute', top: '-50px', left: '-50px', width: '20px', height: '20px', backgroundColor: '#f43f5e', borderRadius: '50%',
@@ -264,7 +249,6 @@ export const Layer2SecurityLab: React.FC<Layer2SecurityLabProps> = ({ isDarkMode
                     }}></div>
                   )}
 
-                  {/* Packet from Legit to Switch */}
                   {snoopSender === 'LEGIT' && snoopAnimPhase !== 'IDLE' && (
                     <div style={{
                       position: 'absolute', top: '-50px', right: '-50px', width: '20px', height: '20px', backgroundColor: '#10b981', borderRadius: '50%',
@@ -273,7 +257,6 @@ export const Layer2SecurityLab: React.FC<Layer2SecurityLabProps> = ({ isDarkMode
                     }}></div>
                   )}
 
-                  {/* Packet from Switch to PC */}
                   {snoopAnimPhase === 'TO_PC' && (
                     <div style={{
                       position: 'absolute', bottom: '-20px', left: '50%', width: '20px', height: '20px', backgroundColor: snoopSender === 'ROGUE' ? '#f43f5e' : '#10b981', borderRadius: '50%',
@@ -286,11 +269,10 @@ export const Layer2SecurityLab: React.FC<Layer2SecurityLabProps> = ({ isDarkMode
                 </div>
               </div>
 
-              {/* VICTIM PC (Bottom Center) */}
               <div style={{ gridColumn: 'span 2', display: 'flex', flexDirection: 'column', alignItems: 'center', zIndex: 2 }}>
                 <div style={{ padding: '15px 30px', borderRadius: '8px', backgroundColor: '#0f172a', border: `2px solid ${styles.accent}`, textAlign: 'center' }}>
                   <div style={{ fontSize: '2rem' }}>💻</div>
-                  <div style={{ fontSize: '0.75rem', fontWeight: 'bold', color: styles.accent }}>Victim PC</div>
+                  <div style={{ fontSize: '0.75rem', fontWeight: 'bold', color: styles.accent }}>Victim PC (Fa0/1)</div>
                   <div style={{ fontSize: '0.65rem', fontFamily: 'monospace', color: victimIp !== '0.0.0.0' ? (victimIp.startsWith('192') ? '#f43f5e' : '#10b981') : '#cbd5e1', marginTop: '4px' }}>
                     IP: {victimIp}
                   </div>
@@ -301,11 +283,12 @@ export const Layer2SecurityLab: React.FC<Layer2SecurityLabProps> = ({ isDarkMode
 
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: '1.5rem' }}>
             <div style={{ backgroundColor: styles.setupBg, padding: '1.5rem', borderRadius: '8px', display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-              <span style={{ display: 'block', fontSize: '0.7rem', fontWeight: 800, color: styles.textMuted, textTransform: 'uppercase', borderBottom: '1px solid rgba(255,255,255,0.05)', paddingBottom: '6px' }}>1. Set Port Trust</span>
+              <span style={{ display: 'block', fontSize: '0.7rem', fontWeight: 800, color: styles.textMuted, textTransform: 'uppercase', borderBottom: '1px solid rgba(255,255,255,0.05)', paddingBottom: '6px' }}>1. Set Port Trust Boundaries</span>
               
               <div style={{ display: 'grid', gap: '6px' }}>
-                 <button onClick={() => setPort2Trusted(!port2Trusted)} style={{ padding: '8px', fontSize: '0.65rem', fontWeight: 'bold', borderRadius: '4px', border: `1px solid ${port2Trusted ? '#f43f5e' : styles.border}`, cursor: 'pointer', backgroundColor: port2Trusted ? 'rgba(244,63,94,0.1)' : styles.chartBg, color: port2Trusted ? '#f43f5e' : styles.textMuted }}>Toggle Rogue Port (Fa0/2)</button>
-                 <button onClick={() => setPort24Trusted(!port24Trusted)} style={{ padding: '8px', fontSize: '0.65rem', fontWeight: 'bold', borderRadius: '4px', border: `1px solid ${port24Trusted ? '#10b981' : styles.border}`, cursor: 'pointer', backgroundColor: port24Trusted ? 'rgba(16,185,129,0.1)' : styles.chartBg, color: port24Trusted ? '#10b981' : styles.textMuted }}>Toggle Corp Port (Fa0/24)</button>
+                 <button onClick={() => setPort1Trusted(!port1Trusted)} style={{ padding: '8px', fontSize: '0.65rem', fontWeight: 'bold', borderRadius: '4px', border: `1px solid ${port1Trusted ? '#06b6d4' : styles.border}`, cursor: 'pointer', backgroundColor: port1Trusted ? 'rgba(6,182,212,0.1)' : styles.chartBg, color: port1Trusted ? '#06b6d4' : styles.textMuted }}>Toggle Client Port (Fa0/1): {port1Trusted ? 'TRUSTED' : 'UNTRUSTED'}</button>
+                 <button onClick={() => setPort2Trusted(!port2Trusted)} style={{ padding: '8px', fontSize: '0.65rem', fontWeight: 'bold', borderRadius: '4px', border: `1px solid ${port2Trusted ? '#f43f5e' : styles.border}`, cursor: 'pointer', backgroundColor: port2Trusted ? 'rgba(244,63,94,0.1)' : styles.chartBg, color: port2Trusted ? '#f43f5e' : styles.textMuted }}>Toggle Rogue Port (Fa0/2): {port2Trusted ? 'TRUSTED' : 'UNTRUSTED'}</button>
+                 <button onClick={() => setPort24Trusted(!port24Trusted)} style={{ padding: '8px', fontSize: '0.65rem', fontWeight: 'bold', borderRadius: '4px', border: `1px solid ${port24Trusted ? '#10b981' : styles.border}`, cursor: 'pointer', backgroundColor: port24Trusted ? 'rgba(16,185,129,0.1)' : styles.chartBg, color: port24Trusted ? '#10b981' : styles.textMuted }}>Toggle Corp Port (Fa0/24): {port24Trusted ? 'TRUSTED' : 'UNTRUSTED'}</button>
               </div>
 
               <span style={{ display: 'block', fontSize: '0.7rem', fontWeight: 800, color: styles.textMuted, textTransform: 'uppercase', borderBottom: '1px solid rgba(255,255,255,0.05)', paddingBottom: '6px', marginTop: '10px' }}>2. Fire Payloads</span>
@@ -324,11 +307,8 @@ export const Layer2SecurityLab: React.FC<Layer2SecurityLabProps> = ({ isDarkMode
         </div>
       )}
 
-      {/* ========================================== */}
-      {/* DETAILED LESSON CHEATSHEET ACCORDION */}
-      {/* ========================================== */}
+      {/* --- DETAILED LESSON CHEATSHEET --- */}
       <div style={{ borderTop: '2px solid rgba(255,255,255,0.05)', paddingTop: '1.5rem', marginTop: '1.5rem', display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '1.5rem', fontSize: '0.8rem', lineHeight: '1.5' }}>
-        
         {activeTab === 'PORT_SEC' && (
           <>
             <div>
@@ -362,7 +342,6 @@ export const Layer2SecurityLab: React.FC<Layer2SecurityLabProps> = ({ isDarkMode
             </div>
           </>
         )}
-        
       </div>
 
     </div>
