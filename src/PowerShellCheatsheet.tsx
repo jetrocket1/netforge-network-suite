@@ -1,4 +1,5 @@
-import React, { useState } from 'react';
+﻿import React, { useState } from 'react';
+import { getLabTheme } from './labTheme';
 
 interface CheatCmd {
   id: string;
@@ -20,20 +21,7 @@ export const PowerShellCheatsheet: React.FC<PowerShellCheatsheetProps> = ({ isDa
   const [selectedCmdId, setSelectedCmdId] = useState<string>('tnc-port');
   const [copiedId, setCopiedId] = useState<string | null>(null);
 
-  const styles = {
-    cardBg: isDarkMode ? '#111827' : '#ffffff',
-    border: isDarkMode ? '1px solid rgba(255, 255, 255, 0.05)' : '1px solid rgba(0, 0, 0, 0.06)',
-    textPrimary: isDarkMode ? '#f8fafc' : '#0f172a',
-    textMuted: isDarkMode ? '#94a3b8' : '#475569',
-    setupBg: isDarkMode ? '#161f30' : '#f1f5f9',
-    chartBg: isDarkMode ? '#0b0f19' : '#f8fafc',
-    terminalBg: '#05050a',
-    terminalText: '#38bdf8',
-    accent: isDarkMode ? '#06b6d4' : '#0284c7',
-    fwd: '#10b981',
-    blk: '#f43f5e',
-    lst: '#eab308'
-  };
+  const T = getLabTheme(isDarkMode);
 
   const commands: CheatCmd[] = [
     {
@@ -128,17 +116,15 @@ export const PowerShellCheatsheet: React.FC<PowerShellCheatsheetProps> = ({ isDa
   const selectedCmd = commands.find(c => c.id === selectedCmdId) || commands[0];
 
   return (
-    <div style={{ padding: '2rem', backgroundColor: styles.cardBg, borderRadius: '12px', border: styles.border, color: styles.textPrimary, fontFamily: 'system-ui, sans-serif' }}>
+    <div style={{ padding: '2rem', backgroundColor: T.cardBg, borderRadius: '12px', border: T.border, color: T.textPrimary, fontFamily: 'system-ui, sans-serif' }}>
       
-      {/* SECTION HEADER */}
-      <div style={{ marginBottom: '1.5rem', borderBottom: '1px solid rgba(255,255,255,0.05)', paddingBottom: '1rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '10px' }}>
+      <div style={{ marginBottom: '1.5rem', borderBottom: T.border, paddingBottom: '1rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '10px' }}>
         <div>
-          <h3 style={{ fontSize: '1.4rem', fontWeight: "800", margin: 0 }}>PowerShell Systems & Diagnostics Matrix</h3>
-          <p style={{ color: styles.textMuted, margin: '4px 0 0 0', fontSize: '0.85rem' }}>Master object-oriented terminal scripting, legacy utility translation tables, and network interface troubleshooting pipelines.</p>
+          <h3 style={{ fontSize: '1.4rem', fontWeight: 800, margin: 0 }}>PowerShell Systems &amp; Diagnostics Matrix</h3>
+          <p style={{ color: T.textSecondary, margin: '4px 0 0 0', fontSize: '0.85rem' }}>Master object-oriented terminal scripting, legacy utility translation tables, and network interface troubleshooting pipelines.</p>
         </div>
         
-        {/* CATEGORY NAV FILTERS */}
-        <div style={{ display: 'flex', backgroundColor: styles.setupBg, padding: '4px', borderRadius: '8px', border: styles.border }}>
+        <div style={{ display: 'flex', backgroundColor: T.panelBg, padding: '4px', borderRadius: '8px', border: T.border }}>
           {(['all', 'foundations', 'networking', 'admin'] as const).map(tab => (
             <button
               type="button"
@@ -147,13 +133,13 @@ export const PowerShellCheatsheet: React.FC<PowerShellCheatsheetProps> = ({ isDa
               style={{
                 padding: '6px 12px',
                 fontSize: '0.75rem',
-                fontWeight: "bold",
+                fontWeight: 'bold',
                 border: 'none',
                 borderRadius: '4px',
                 cursor: 'pointer',
                 textTransform: 'uppercase',
-                backgroundColor: activeTab === tab ? styles.accent : 'transparent',
-                color: activeTab === tab ? '#fff' : styles.textMuted,
+                backgroundColor: activeTab === tab ? T.accent : 'transparent',
+                color: activeTab === tab ? '#fff' : T.textSecondary,
                 transition: 'all 0.15s ease'
               }}
             >
@@ -163,10 +149,8 @@ export const PowerShellCheatsheet: React.FC<PowerShellCheatsheetProps> = ({ isDa
         </div>
       </div>
 
-      {/* TWO COLUMN INTERACTIVE TERMINAL HUB */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: '1.5rem' }}>
         
-        {/* LEFT COLUMN: COMMAND SELECTOR INDEX */}
         <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', maxHeight: '420px', overflowY: 'auto', paddingRight: '4px' }}>
           {filteredCommands.map(item => {
             const isSelected = item.id === selectedCmdId;
@@ -176,8 +160,8 @@ export const PowerShellCheatsheet: React.FC<PowerShellCheatsheetProps> = ({ isDa
                 onClick={() => setSelectedCmdId(item.id)}
                 style={{
                   padding: '10px 12px',
-                  backgroundColor: isSelected ? styles.setupBg : 'rgba(255,255,255,0.01)',
-                  border: isSelected ? `1px solid ${styles.accent}` : '1px solid rgba(255,255,255,0.03)',
+                  backgroundColor: isSelected ? T.panelBg : 'transparent',
+                  border: isSelected ? `1px solid ${T.accent}` : `1px solid ${T.borderColor}`,
                   borderRadius: '8px',
                   cursor: 'pointer',
                   transition: 'all 0.15s ease',
@@ -187,14 +171,14 @@ export const PowerShellCheatsheet: React.FC<PowerShellCheatsheetProps> = ({ isDa
                 }}
               >
                 <div>
-                  <div style={{ fontSize: '0.8rem', fontWeight: "bold", fontFamily: 'monospace', color: isSelected ? styles.accent : styles.textPrimary }}>
+                  <div style={{ fontSize: '0.8rem', fontWeight: 'bold', fontFamily: 'monospace', color: isSelected ? T.accent : T.textPrimary }}>
                     {item.cmd}
                   </div>
-                  <div style={{ fontSize: '0.7rem', color: styles.textMuted, marginTop: '2px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: '280px' }}>
+                  <div style={{ fontSize: '0.7rem', color: T.textSecondary, marginTop: '2px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: '280px' }}>
                     {item.summary}
                   </div>
                 </div>
-                <span style={{ fontSize: '0.55rem', fontWeight: "bold", textTransform: 'uppercase', padding: '2px 5px', borderRadius: '4px', backgroundColor: item.category === 'networking' ? `${styles.fwd}22` : `${styles.lst}22`, color: item.category === 'networking' ? styles.fwd : styles.lst }}>
+                <span style={{ fontSize: '0.55rem', fontWeight: 'bold', textTransform: 'uppercase', padding: '2px 5px', borderRadius: '4px', backgroundColor: item.category === 'networking' ? T.successSubtle : T.warningSubtle, color: item.category === 'networking' ? T.success : T.warning }}>
                   {item.category.slice(0, 3)}
                 </span>
               </div>
@@ -202,50 +186,46 @@ export const PowerShellCheatsheet: React.FC<PowerShellCheatsheetProps> = ({ isDa
           })}
         </div>
 
-        {/* RIGHT COLUMN: DETAIL ENGINE INSPECTOR SCREEN */}
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem', backgroundColor: styles.setupBg, padding: '1.2rem', borderRadius: '10px', border: styles.border }}>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem', backgroundColor: T.panelBg, padding: '1.2rem', borderRadius: '10px', border: T.border }}>
           
           <div>
-            <span style={{ fontSize: '0.6rem', color: styles.accent, fontWeight: "bold", textTransform: 'uppercase', display: 'block' }}>Active Object Inspection</span>
-            <h4 style={{ margin: '4px 0 0 0', fontSize: '1.1rem', fontWeight: "700", fontFamily: 'monospace' }}>{selectedCmd.cmd}</h4>
-            <p style={{ margin: '6px 0 0 0', fontSize: '0.8rem', color: styles.textMuted, lineHeight: '1.4' }}>{selectedCmd.summary}</p>
+            <span style={{ fontSize: '0.6rem', color: T.accent, fontWeight: 'bold', textTransform: 'uppercase', display: 'block' }}>Active Object Inspection</span>
+            <h4 style={{ margin: '4px 0 0 0', fontSize: '1.1rem', fontWeight: 700, fontFamily: 'monospace' }}>{selectedCmd.cmd}</h4>
+            <p style={{ margin: '6px 0 0 0', fontSize: '0.8rem', color: T.textSecondary, lineHeight: '1.4' }}>{selectedCmd.summary}</p>
           </div>
 
           {selectedCmd.legacyEquivalent && (
-            <div style={{ fontSize: '0.75rem', borderLeft: `3px solid ${styles.lst}`, paddingLeft: '8px', color: styles.textMuted }}>
-              Legacy Command Line equivalent: <code style={{ fontFamily: 'monospace', color: styles.lst, fontWeight: "bold" }}>{selectedCmd.legacyEquivalent}</code>
+            <div style={{ fontSize: '0.75rem', borderLeft: `3px solid ${T.warning}`, paddingLeft: '8px', color: T.textSecondary }}>
+              Legacy Command Line equivalent: <code style={{ fontFamily: 'monospace', color: T.warning, fontWeight: 'bold' }}>{selectedCmd.legacyEquivalent}</code>
             </div>
           )}
 
-          {/* PARAMETER SYNTAX BLOCK */}
           <div>
-            <span style={{ fontSize: '0.6rem', color: styles.textMuted, fontWeight: "bold", textTransform: 'uppercase', display: 'block', marginBottom: '4px' }}>Cmdlet Blueprint Syntax</span>
-            <div style={{ backgroundColor: styles.chartBg, padding: '8px 12px', borderRadius: '6px', fontFamily: 'monospace', fontSize: '0.75rem', border: '1px solid rgba(255,255,255,0.03)', color: '#cbd5e1' }}>
+            <span style={{ fontSize: '0.6rem', color: T.textSecondary, fontWeight: 'bold', textTransform: 'uppercase', display: 'block', marginBottom: '4px' }}>Cmdlet Blueprint Syntax</span>
+            <div style={{ backgroundColor: T.insetBg, padding: '8px 12px', borderRadius: '6px', fontFamily: 'monospace', fontSize: '0.75rem', border: `1px solid ${T.borderColor}`, color: T.textPrimary }}>
               {selectedCmd.syntax}
             </div>
           </div>
 
-          {/* REAL WORLD HANDS ON LAB STRING */}
           <div>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '4px' }}>
-              <span style={{ fontSize: '0.6rem', color: styles.textMuted, fontWeight: "bold", textTransform: 'uppercase' }}>Real-World Deployment Execution</span>
+              <span style={{ fontSize: '0.6rem', color: T.textSecondary, fontWeight: 'bold', textTransform: 'uppercase' }}>Real-World Deployment Execution</span>
               <button
                 type="button"
                 onClick={() => handleCopy(selectedCmd.realWorldScenario, selectedCmd.id)}
-                style={{ background: 'transparent', border: 'none', color: copiedId === selectedCmd.id ? styles.fwd : styles.accent, fontSize: '0.65rem', fontWeight: "bold", cursor: 'pointer' }}
+                style={{ background: 'transparent', border: 'none', color: copiedId === selectedCmd.id ? T.success : T.accent, fontSize: '0.65rem', fontWeight: 'bold', cursor: 'pointer' }}
               >
-                {copiedId === selectedCmd.id ? '✓ Copied to Clipboard' : '📋 Copy String'}
+                {copiedId === selectedCmd.id ? 'Copied' : 'Copy'}
               </button>
             </div>
-            <div style={{ backgroundColor: styles.terminalBg, padding: '10px 14px', borderRadius: '6px', fontFamily: 'monospace', fontSize: '0.75rem', color: styles.terminalText, border: '1px solid #1e293b', whiteSpace: 'pre-wrap', lineHeight: '1.4' }}>
+            <div style={{ backgroundColor: T.termBg, padding: '10px 14px', borderRadius: '6px', fontFamily: 'monospace', fontSize: '0.75rem', color: T.termText, border: `1px solid ${T.termBorder}`, whiteSpace: 'pre-wrap', lineHeight: '1.4' }}>
               PS C:\&gt; {selectedCmd.realWorldScenario}
             </div>
           </div>
 
-          {/* .NET RUNTIME PIPELINE LAYER OBJECT STRUCTURE SCREEN */}
           <div style={{ flexGrow: 1, display: 'flex', flexDirection: 'column' }}>
-            <span style={{ fontSize: '0.6rem', color: styles.textMuted, fontWeight: "bold", textTransform: 'uppercase', marginBottom: '4px' }}>Structured .NET Object Pipeline Return Output</span>
-            <div style={{ flexGrow: 1, backgroundColor: '#020205', padding: '10px 12px', borderRadius: '6px', border: '1px solid rgba(255,255,255,0.02)', overflowX: 'auto' }}>
+            <span style={{ fontSize: '0.6rem', color: T.textSecondary, fontWeight: 'bold', textTransform: 'uppercase', marginBottom: '4px' }}>Structured .NET Object Pipeline Return Output</span>
+            <div style={{ flexGrow: 1, backgroundColor: T.termBg, padding: '10px 12px', borderRadius: '6px', border: `1px solid ${T.termBorder}`, overflowX: 'auto' }}>
               <pre style={{ margin: 0, padding: 0, fontFamily: 'monospace', fontSize: '0.65rem', color: '#a3e635', lineHeight: '1.4', whiteSpace: 'pre-wrap' }}>
                 {selectedCmd.objectOutputExample}
               </pre>
@@ -256,18 +236,17 @@ export const PowerShellCheatsheet: React.FC<PowerShellCheatsheetProps> = ({ isDa
 
       </div>
 
-      {/* CORE OBJECT PIPELINE THEORY CARD ACCORDION */}
-      <div style={{ marginTop: '1.5rem', borderTop: '2px solid rgba(255,255,255,0.05)', paddingTop: '1.5rem', display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '1.5rem', fontSize: '0.8rem', lineHeight: '1.5' }}>
+      <div style={{ marginTop: '1.5rem', borderTop: T.border, paddingTop: '1.5rem', display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '1.5rem', fontSize: '0.8rem', lineHeight: '1.5' }}>
         <div>
-          <h4 style={{ margin: '0 0 4px 0', fontSize: '0.9rem', fontWeight: "700", color: styles.accent }}>🌊 The Object-Oriented Pipeline Difference</h4>
-          <p style={{ margin: 0, color: styles.textMuted }}>
-            Unlike standard Bash or Command Prompt shells which stream raw flat text output lines, PowerShell passes **complete structural .NET objects** down the pipe. This allows engineers to instantly filter, slice, or convert diagnostic lists into formatted CSV files natively without complicated string parsing logic.
+          <h4 style={{ margin: '0 0 4px 0', fontSize: '0.9rem', fontWeight: 700, color: T.accent }}>The Object-Oriented Pipeline Difference</h4>
+          <p style={{ margin: 0, color: T.textSecondary }}>
+            Unlike standard Bash or Command Prompt shells which stream raw flat text output lines, PowerShell passes complete structural .NET objects down the pipe. This allows engineers to instantly filter, slice, or convert diagnostic lists into formatted CSV files natively without complicated string parsing logic.
           </p>
         </div>
         <div>
-          <h4 style={{ margin: '0 0 4px 0', fontSize: '0.9rem', fontWeight: "700", color: styles.fwd }}>🧠 The Discovery Core (RRM)</h4>
-          <p style={{ margin: 0, color: styles.textMuted }}>
-            Teach your learners to rely on the discovery triad if they lose their footing: <code>Get-Command</code> to identify names, <code>Get-Help</code> to audit parameter syntaxes and real operational scenarios, and <code>Get-Member</code> to expose hidden object elements streaming across the active session pipe.
+          <h4 style={{ margin: '0 0 4px 0', fontSize: '0.9rem', fontWeight: 700, color: T.success }}>The Discovery Core (RRM)</h4>
+          <p style={{ margin: 0, color: T.textSecondary }}>
+            Teach your learners to rely on the discovery triad: <code>Get-Command</code> to identify names, <code>Get-Help</code> to audit parameter syntaxes and real operational scenarios, and <code>Get-Member</code> to expose hidden object elements streaming across the active session pipe.
           </p>
         </div>
       </div>

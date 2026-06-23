@@ -1,365 +1,260 @@
 import React, { useState, useEffect } from 'react';
+import { getLabTheme } from './labTheme';
 
-interface CsmaLabProps {
-  isDarkMode?: boolean;
-}
-
+interface CsmaLabProps { isDarkMode?: boolean; }
 type CdPhases = 'IDLE' | 'TRANSMITTING' | 'COLLISION' | 'JAMMING' | 'BACKOFF' | 'RETRANSMITTING' | 'SUCCESS';
 type CaPhases = 'IDLE' | 'DIFS' | 'RTS' | 'CTS' | 'DATA' | 'ACK' | 'SUCCESS';
 
 export const CsmaLab: React.FC<CsmaLabProps> = ({ isDarkMode = true }) => {
   const [activeTab, setActiveTab] = useState<'CD' | 'CA'>('CD');
-
-  // Interactive Carrier Sense toggles
-  const [isNode1Chatty, setIsNode1Chatty] = useState<boolean>(false);
-  const [isNode2Chatty, setIsNode2Chatty] = useState<boolean>(false);
-
-  // --- CSMA/CD MANUAL STEP TRACKING (Wired) ---
+  const [isNode1Chatty, setIsNode1Chatty] = useState(false);
+  const [isNode2Chatty, setIsNode2Chatty] = useState(false);
   const [cdPhase, setCdPhase] = useState<CdPhases>('IDLE');
-  const [cdStepIndex, setCdStepIndex] = useState<number>(0);
-  const [cdProgress, setCdProgress] = useState<number>(0);
-
-  // --- CSMA/CA MANUAL STEP TRACKING (Wireless) ---
+  const [cdStepIndex, setCdStepIndex] = useState(0);
+  const [cdProgress, setCdProgress] = useState(0);
   const [caPhase, setCaPhase] = useState<CaPhases>('IDLE');
-  const [caStepIndex, setCaStepIndex] = useState<number>(0);
-  const [caProgress, setCaProgress] = useState<number>(0);
-  const [navTimer, setNavTimer] = useState<number>(0);
+  const [caStepIndex, setCaStepIndex] = useState(0);
+  const [caProgress, setCaProgress] = useState(0);
+  const [navTimer, setNavTimer] = useState(0);
+  const T = getLabTheme(isDarkMode);
 
-  // ==========================================
-  // STEP BLUEPRINTS & INSTRUCTIONAL MATERIAL
-  // ==========================================
   const cdSteps = [
-    { phase: 'IDLE', log: 'System idle. Both network interface cards (NICs) are listening to media line electrical parameters.' },
-    { phase: 'TRANSMITTING', log: 'Step 1: CARRIER SENSE — The bus medium is clear. Both hosts lunge out frames simultaneously over the wire.' },
-    { phase: 'COLLISION', log: 'Step 2: COLLISION — The electrical signals collide mid-wire! A critical Layer 1 voltage spike is generated.' },
-    { phase: 'JAMMING', log: 'Step 3: JAM SIGNAL — Transmitters detect the voltage anomaly, abort current frames, and flood 32-bit JAM patterns across the line.' },
-    { phase: 'BACKOFF', log: 'Step 4: RANDOM BACKOFF — NIC algorithms generate backoff blocks. Host 1 draws a 3ms delay; Host 2 draws a 9ms delay.' },
-    { phase: 'RETRANSMITTING', log: 'Step 5: RETRANSMIT — Host 1 timer expires first. It senses clear media and injects its data payload safely down the line.' },
-    { phase: 'SUCCESS', log: '✅ SUCCESS — Host 1 data frame completely delivered. Host 2 will wait to transparently re-sense the carrier later.' }
+    { phase: 'IDLE',           log: 'Idle — both NICs are listening for activity on the shared medium.' },
+    { phase: 'TRANSMITTING',   log: 'Step 1: Carrier Sense — the medium appears clear. Both hosts transmit simultaneously.' },
+    { phase: 'COLLISION',      log: 'Step 2: Collision — electrical signals overlap mid-wire, creating a voltage spike.' },
+    { phase: 'JAMMING',        log: 'Step 3: Jam signal — both NICs broadcast a 32-bit jam to alert all stations to stop transmitting.' },
+    { phase: 'BACKOFF',        log: 'Step 4: Random backoff — Host 1 waits 3 ms, Host 2 waits 9 ms before retrying.' },
+    { phase: 'RETRANSMITTING', log: 'Step 5: Retransmit — Host 1 wins the backoff race and sends its frame successfully.' },
+    { phase: 'SUCCESS',        log: 'Complete — Host 1 frame delivered. Host 2 will wait and re-check the medium later.' },
   ] as const;
 
   const caSteps = [
-    { phase: 'IDLE', log: 'Airspace clear. Devices monitoring RF parameters.' },
-    { phase: 'DIFS', log: 'Step 1: DCF INTER-FRAME SPACE — Laptop A senses free airspace and calculates its mandatory DIFS validation countdown.' },
-    { phase: 'RTS', log: 'Step 2: REQUEST-TO-SEND — Laptop A casts an RTS frame out over the air to request exclusive access to the wireless channel.' },
-    { phase: 'CTS', log: 'Step 3: CLEAR-TO-SEND — Access Point returns a CTS frame broadcast. Laptop B parses the frame and sets its internal NAV lockout.' },
-    { phase: 'DATA', log: 'Step 4: DATA IN FLIGHT — Airspace reserved. Laptop A streams its complete un-fragmented unicast data frame blocks.' },
-    { phase: 'ACK', log: 'Step 5: ACKNOWLEDGEMENT — Access Point runs a CRC check and transmits a Layer 2 ACK frame back to Laptop A.' },
-    { phase: 'SUCCESS', log: '✅ SUCCESS — Spatial frame sequence securely closed out. Laptop B un-freezes its antenna as the medium drops back to clear.' }
+    { phase: 'IDLE',    log: 'Idle — all devices are monitoring the wireless medium for activity.' },
+    { phase: 'DIFS',    log: 'Step 1: DIFS — Laptop A waits the mandatory Distributed Inter-Frame Space before transmitting.' },
+    { phase: 'RTS',     log: 'Step 2: RTS — Laptop A sends a Request-to-Send frame to reserve the channel.' },
+    { phase: 'CTS',     log: 'Step 3: CTS — The AP grants access with a Clear-to-Send. Laptop B reads this and sets its NAV timer.' },
+    { phase: 'DATA',    log: 'Step 4: Data — the channel is reserved. Laptop A transmits its full data frame.' },
+    { phase: 'ACK',     log: 'Step 5: ACK — the AP confirms receipt with a Layer 2 acknowledgement.' },
+    { phase: 'SUCCESS', log: 'Complete — frame exchange closed. Laptop B\'s NAV timer expires and the medium opens again.' },
   ] as const;
 
-  // Fluid Vector Animation Tick Clock Loop
   useEffect(() => {
-    let interval: any;
+    let interval: ReturnType<typeof setInterval>;
     if (['TRANSMITTING', 'JAMMING', 'RETRANSMITTING'].includes(cdPhase)) {
       setCdProgress(0);
-      interval = setInterval(() => {
-        setCdProgress(prev => (prev >= 100 ? 100 : prev + 4));
-      }, 20);
-    } else {
-      setCdProgress(0);
-    }
+      interval = setInterval(() => setCdProgress(p => (p >= 100 ? 100 : p + 4)), 20);
+    } else { setCdProgress(0); }
     return () => clearInterval(interval);
   }, [cdPhase]);
 
   useEffect(() => {
-    let interval: any;
+    let interval: ReturnType<typeof setInterval>;
     if (['RTS', 'CTS', 'DATA', 'ACK'].includes(caPhase)) {
       setCaProgress(0);
-      interval = setInterval(() => {
-        setCaProgress(prev => (prev >= 100 ? 100 : prev + 5));
-      }, 20);
-    } else {
-      setCaProgress(0);
-    }
+      interval = setInterval(() => setCaProgress(p => (p >= 100 ? 100 : p + 5)), 20);
+    } else { setCaProgress(0); }
     return () => clearInterval(interval);
   }, [caPhase]);
 
-  // Handle live navigation timer countdowns
   useEffect(() => {
     if (navTimer <= 0) return;
-    const timeout = setTimeout(() => setNavTimer(prev => prev - 1), 100);
-    return () => clearTimeout(timeout);
+    const t = setTimeout(() => setNavTimer(n => n - 1), 100);
+    return () => clearTimeout(t);
   }, [navTimer]);
 
-  // ==========================================
-  // STEPPERS IMPLEMENTATION ENGINE
-  // ==========================================
   const handleNextCdStep = () => {
-    if (cdStepIndex === 0 && (isNode1Chatty || isNode2Chatty)) {
-      return; 
-    }
-    const nextIndex = (cdStepIndex + 1) % cdSteps.length;
-    setCdStepIndex(nextIndex);
-    setCdPhase(cdSteps[nextIndex].phase);
+    if (cdStepIndex === 0 && (isNode1Chatty || isNode2Chatty)) return;
+    const next = (cdStepIndex + 1) % cdSteps.length;
+    setCdStepIndex(next); setCdPhase(cdSteps[next].phase as CdPhases);
   };
-
   const handleNextCaStep = () => {
-    const nextIndex = (caStepIndex + 1) % caSteps.length;
-    setCaStepIndex(nextIndex);
-    setCaPhase(caSteps[nextIndex].phase);
-    
-    if (caSteps[nextIndex].phase === 'CTS') {
-      setNavTimer(55);
-    } else if (caSteps[nextIndex].phase === 'IDLE' || caSteps[nextIndex].phase === 'SUCCESS') {
-      setNavTimer(0);
-    }
+    const next = (caStepIndex + 1) % caSteps.length;
+    setCaStepIndex(next); setCaPhase(caSteps[next].phase as CaPhases);
+    if (caSteps[next].phase === 'CTS') setNavTimer(55);
+    else if (caSteps[next].phase === 'IDLE' || caSteps[next].phase === 'SUCCESS') setNavTimer(0);
   };
+  const resetCd = () => { setCdStepIndex(0); setCdPhase('IDLE'); setIsNode1Chatty(false); setIsNode2Chatty(false); };
+  const resetCa = () => { setCaStepIndex(0); setCaPhase('IDLE'); setNavTimer(0); };
 
-  const resetCdEngine = () => {
-    setCdStepIndex(0);
-    setCdPhase('IDLE');
-  };
+  const tabBtn = (active: boolean, color: string) => ({
+    flex: 1, padding: '8px 12px', border: 'none', borderRadius: '6px', cursor: 'pointer',
+    fontWeight: 700, fontSize: '0.8rem', backgroundColor: active ? color : 'transparent',
+    color: active ? '#fff' : T.textSecondary, transition: 'all 0.12s',
+  } as React.CSSProperties);
 
-  const resetCaEngine = () => {
-    setCaStepIndex(0);
-    setCaPhase('IDLE');
-    setNavTimer(0);
-  };
-
-  const styles = {
-    cardBg: isDarkMode ? '#111827' : '#ffffff',
-    border: isDarkMode ? '1px solid rgba(255, 255, 255, 0.05)' : '1px solid rgba(0, 0, 0, 0.06)',
-    textPrimary: isDarkMode ? '#f8fafc' : '#0f172a',
-    textMuted: isDarkMode ? '#94a3b8' : '#475569',
-    setupBg: isDarkMode ? '#161f30' : '#f1f5f9',
-    chartBg: isDarkMode ? '#0b0f19' : '#f8fafc',
-    terminalBg: '#05050a',
-    terminalText: '#38bdf8',
-    accent: isDarkMode ? '#06b6d4' : '#0284c7',
-    fwd: '#10b981',
-    blk: '#ef4444',
-    lst: '#eab308'
-  };
+  const isCollision = ['COLLISION', 'JAMMING'].includes(cdPhase);
 
   return (
-    <div style={{ padding: '2rem', backgroundColor: styles.cardBg, borderRadius: '12px', border: styles.border, color: styles.textPrimary, fontFamily: 'system-ui, sans-serif' }}>
-      
-      {/* SECTION HEADER */}
-      <div style={{ marginBottom: '1.5rem', borderBottom: '1px solid rgba(255,255,255,0.05)', paddingBottom: '1rem' }}>
-        <h3 style={{ fontSize: '1.4rem', fontWeight: 800, margin: 0, letterSpacing: '-0.025em' }}>🚦 Media Access Control (MAC) Step Lab</h3>
-        <p style={{ color: styles.textMuted, margin: '4px 0 0 0', fontSize: '0.85rem' }}>Contrast the physical collision detection of legacy Ethernet with the polite avoidance handshakes of 802.11 Wi-Fi.</p>
+    <div style={{ padding: '2rem', backgroundColor: T.cardBg, borderRadius: '12px', border: T.border, color: T.textPrimary, fontFamily: 'system-ui, sans-serif' }}>
+
+      {/* Header */}
+      <div style={{ marginBottom: '1.5rem', borderBottom: T.border, paddingBottom: '1rem' }}>
+        <h3 style={{ fontSize: '1.25rem', fontWeight: 700, margin: 0 }}>Media Access Control</h3>
+        <p style={{ color: T.textSecondary, margin: '4px 0 0', fontSize: '0.875rem' }}>
+          Compare how wired Ethernet (CSMA/CD) detects collisions after they happen, versus how Wi-Fi (CSMA/CA) prevents them before they occur.
+        </p>
       </div>
 
-      {/* FILTER BUTTON TABS */}
-      <div style={{ display: 'flex', gap: '8px', marginBottom: '1.5rem', backgroundColor: styles.setupBg, padding: '4px', borderRadius: '8px', border: styles.border }}>
-        <button type="button" onClick={() => { setActiveTab('CD'); resetCdEngine(); }} style={{ flex: 1, padding: '10px', fontSize: '0.75rem', fontWeight: 'bold', border: 'none', borderRadius: '4px', cursor: 'pointer', textTransform: 'uppercase', backgroundColor: activeTab === 'CD' ? styles.accent : 'transparent', color: activeTab === 'CD' ? '#fff' : styles.textMuted }}>💥 CSMA/CD (Wired)</button>
-        <button type="button" onClick={() => { setActiveTab('CA'); resetCaEngine(); }} style={{ flex: 1, padding: '10px', fontSize: '0.75rem', fontWeight: 'bold', border: 'none', borderRadius: '4px', cursor: 'pointer', textTransform: 'uppercase', backgroundColor: activeTab === 'CA' ? styles.fwd : 'transparent', color: activeTab === 'CA' ? '#fff' : styles.textMuted }}>🛡️ CSMA/CA (Wireless)</button>
+      {/* Tabs */}
+      <div style={{ display: 'flex', gap: '4px', marginBottom: '1.5rem', backgroundColor: T.panelBg, padding: '3px', borderRadius: '8px', border: T.border }}>
+        <button type="button" onClick={() => { setActiveTab('CD'); resetCd(); }} style={tabBtn(activeTab === 'CD', T.accent)}>
+          CSMA/CD — Wired Ethernet
+        </button>
+        <button type="button" onClick={() => { setActiveTab('CA'); resetCa(); }} style={tabBtn(activeTab === 'CA', T.success)}>
+          CSMA/CA — Wireless 802.11
+        </button>
       </div>
 
-      {/* ========================================== */}
-      {/* VIEWPORT 1: CSMA/CD ENGINE                 */}
-      {/* ========================================== */}
+      {/* ── CSMA/CD ── */}
       {activeTab === 'CD' && (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
-          
-          {/* SCHEMATIC SCENE CANVAS */}
-          <div style={{ backgroundColor: '#05070f', border: `1px solid ${['COLLISION', 'JAMMING'].includes(cdPhase) ? styles.blk : '#1e293b'}`, padding: '2.5rem 1rem', borderRadius: '12px', position: 'relative' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', position: 'relative', width: '100%', maxWidth: '700px', margin: '0 auto' }}>
-              
-              {/* PC 1 ENDPOINT NODE */}
-              <div 
-                onClick={() => cdPhase === 'IDLE' && setIsNode1Chatty(!isNode1Chatty)}
-                style={{ 
-                  zIndex: 2, padding: '12px', borderRadius: '8px', backgroundColor: '#0f172a', cursor: cdPhase === 'IDLE' ? 'pointer' : 'not-allowed',
-                  border: `2px solid ${cdPhase === 'BACKOFF' ? styles.lst : (isNode1Chatty ? styles.accent : '#334155')}`, textAlign: 'center', position: 'relative' 
-                }}
-              >
-                <div style={{ fontSize: '2rem' }}>💻</div>
-                <div style={{ fontSize: '0.7rem', fontWeight: 'bold', marginTop: '4px' }}>Host 1 (Fa0/1)</div>
-                <span style={{ fontSize: '0.55rem', display: 'block', color: isNode1Chatty ? styles.accent : styles.textMuted, fontWeight: 'bold' }}>
-                  {isNode1Chatty ? '🔊 LINE_BUSY' : '💤 LINE_IDLE'}
-                </span>
-                {cdPhase === 'BACKOFF' && <div style={{ position: 'absolute', top: '-25px', left: '50%', transform: 'translateX(-50%)', backgroundColor: styles.lst, color: '#000', fontSize: '0.6rem', padding: '2px 5px', borderRadius: '4px', fontWeight: 'bold', whiteSpace: 'nowrap' }}>BACKOFF: 3ms</div>}
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+
+          {/* Canvas */}
+          <div style={{ backgroundColor: T.insetBg, border: isCollision ? `1px solid ${T.danger}` : T.border, padding: '2rem 1.5rem', borderRadius: '12px', position: 'relative' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0', maxWidth: 640, margin: '0 auto', width: '100%' }}>
+
+              {/* Host 1 */}
+              <div onClick={() => cdPhase === 'IDLE' && setIsNode1Chatty(v => !v)}
+                style={{ zIndex: 2, padding: '10px 14px', borderRadius: '8px', backgroundColor: T.panelBg, cursor: cdPhase === 'IDLE' ? 'pointer' : 'default', border: `2px solid ${cdPhase === 'BACKOFF' ? T.warning : isNode1Chatty ? T.accent : T.borderColor}`, textAlign: 'center', minWidth: 90, position: 'relative' }}>
+                <div style={{ fontSize: '1.5rem', lineHeight: 1 }}>&#128187;</div>
+                <div style={{ fontSize: '0.72rem', fontWeight: 700, marginTop: 4 }}>Host 1</div>
+                <div style={{ fontSize: '0.65rem', color: isNode1Chatty ? T.accent : T.textMuted }}>{isNode1Chatty ? 'Line busy' : 'Listening'}</div>
+                {cdPhase === 'BACKOFF' && <div style={{ position: 'absolute', top: -26, left: '50%', transform: 'translateX(-50%)', backgroundColor: T.warning, color: '#000', fontSize: '0.6rem', padding: '2px 6px', borderRadius: '4px', fontWeight: 700, whiteSpace: 'nowrap' }}>Backoff: 3 ms</div>}
               </div>
 
-              {/* SHARED COPPER LINE BUS */}
-              <div style={{ flex: 1, position: 'relative', height: '6px', backgroundColor: ['COLLISION', 'JAMMING'].includes(cdPhase) ? styles.blk : (isNode1Chatty || isNode2Chatty ? styles.accent : '#27354a'), margin: '0 -4px', zIndex: 1 }}>
-                
-                {cdPhase === 'TRANSMITTING' && (
-                  <>
-                    <div style={{ position: 'absolute', left: `${cdProgress * 0.5}%`, top: '50%', transform: 'translate(-50%, -50%)', width: '12px', height: '12px', borderRadius: '50%', backgroundColor: styles.accent }} />
-                    <div style={{ position: 'absolute', left: `${100 - (cdProgress * 0.5)}%`, top: '50%', transform: 'translate(-50%, -50%)', width: '12px', height: '12px', borderRadius: '50%', backgroundColor: styles.accent }} />
-                  </>
-                )}
-
-                {['COLLISION', 'JAMMING'].includes(cdPhase) && (
-                  <div style={{ position: 'absolute', top: '-18px', left: '50%', transform: 'translateX(-50%)', fontSize: '1.8rem', zIndex: 10 }}>💥</div>
-                )}
-
-                {cdPhase === 'JAMMING' && (
-                  <>
-                    <div style={{ position: 'absolute', left: `${cdProgress}%`, top: '50%', transform: 'translate(-50%, -50%)', width: '10px', height: '10px', borderRadius: '50%', backgroundColor: styles.blk }} />
-                    <div style={{ position: 'absolute', left: `${100 - cdProgress}%`, top: '50%', transform: 'translate(-50%, -50%)', width: '10px', height: '10px', borderRadius: '50%', backgroundColor: styles.blk }} />
-                  </>
-                )}
-
+              {/* Wire */}
+              <div style={{ flex: 1, position: 'relative', height: 6, backgroundColor: isCollision ? T.danger : (isNode1Chatty || isNode2Chatty ? T.accent : T.borderColor), margin: '0 -2px', zIndex: 1 }}>
+                {cdPhase === 'TRANSMITTING' && <>
+                  <div style={{ position: 'absolute', left: `${cdProgress * 0.5}%`, top: '50%', transform: 'translate(-50%,-50%)', width: 10, height: 10, borderRadius: '50%', backgroundColor: T.accent }} />
+                  <div style={{ position: 'absolute', left: `${100 - cdProgress * 0.5}%`, top: '50%', transform: 'translate(-50%,-50%)', width: 10, height: 10, borderRadius: '50%', backgroundColor: T.accent }} />
+                </>}
+                {isCollision && <div style={{ position: 'absolute', top: -20, left: '50%', transform: 'translateX(-50%)', fontSize: '1.5rem' }}>&#128165;</div>}
+                {cdPhase === 'JAMMING' && <>
+                  <div style={{ position: 'absolute', left: `${cdProgress}%`, top: '50%', transform: 'translate(-50%,-50%)', width: 8, height: 8, borderRadius: '50%', backgroundColor: T.danger }} />
+                  <div style={{ position: 'absolute', left: `${100 - cdProgress}%`, top: '50%', transform: 'translate(-50%,-50%)', width: 8, height: 8, borderRadius: '50%', backgroundColor: T.danger }} />
+                </>}
                 {['RETRANSMITTING', 'SUCCESS'].includes(cdPhase) && (
-                  <div style={{ position: 'absolute', top: '-10px', width: '22px', height: '22px', backgroundColor: styles.fwd, borderRadius: '4px', left: cdPhase === 'RETRANSMITTING' ? `${cdProgress}%` : '100%', transform: 'translateX(-50%)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '0.55rem', fontWeight: 'bold', color: '#fff', transition: cdPhase === 'SUCCESS' ? 'none' : 'left 0.4s linear' }}>DATA</div>
+                  <div style={{ position: 'absolute', top: -11, left: `${cdPhase === 'RETRANSMITTING' ? cdProgress : 100}%`, transform: 'translateX(-50%)', backgroundColor: T.success, borderRadius: 3, padding: '2px 6px', fontSize: '0.6rem', fontWeight: 700, color: '#fff', fontFamily: 'monospace' }}>DATA</div>
                 )}
               </div>
 
-              {/* PC 2 ENDPOINT NODE */}
-              <div 
-                onClick={() => cdPhase === 'IDLE' && setIsNode2Chatty(!isNode2Chatty)}
-                style={{ 
-                  zIndex: 2, padding: '12px', borderRadius: '8px', backgroundColor: '#0f172a', cursor: cdPhase === 'IDLE' ? 'pointer' : 'not-allowed',
-                  border: `2px solid ${cdPhase === 'BACKOFF' ? styles.blk : (isNode2Chatty ? styles.accent : '#334155')}`, textAlign: 'center', position: 'relative' 
-                }}
-              >
-                <div style={{ fontSize: '2rem' }}>🖥️</div>
-                <div style={{ fontSize: '0.7rem', fontWeight: 'bold', marginTop: '4px' }}>Host 2 (Fa0/2)</div>
-                <span style={{ fontSize: '0.55rem', display: 'block', color: isNode2Chatty ? styles.accent : styles.textMuted, fontWeight: 'bold' }}>
-                  {isNode2Chatty ? '🔊 LINE_BUSY' : '💤 LINE_IDLE'}
-                </span>
-                {cdPhase === 'BACKOFF' && <div style={{ position: 'absolute', top: '-25px', left: '50%', transform: 'translateX(-50%)', backgroundColor: styles.blk, color: '#fff', fontSize: '0.6rem', padding: '2px 5px', borderRadius: '4px', fontWeight: 'bold', whiteSpace: 'nowrap' }}>BACKOFF: 9ms</div>}
-                {cdPhase === 'SUCCESS' && <div style={{ position: 'absolute', top: '-15px', left: '-10px', fontSize: '1.5rem' }}>✅</div>}
+              {/* Host 2 */}
+              <div onClick={() => cdPhase === 'IDLE' && setIsNode2Chatty(v => !v)}
+                style={{ zIndex: 2, padding: '10px 14px', borderRadius: '8px', backgroundColor: T.panelBg, cursor: cdPhase === 'IDLE' ? 'pointer' : 'default', border: `2px solid ${cdPhase === 'BACKOFF' ? T.danger : isNode2Chatty ? T.accent : T.borderColor}`, textAlign: 'center', minWidth: 90, position: 'relative' }}>
+                <div style={{ fontSize: '1.5rem', lineHeight: 1 }}>&#128187;</div>
+                <div style={{ fontSize: '0.72rem', fontWeight: 700, marginTop: 4 }}>Host 2</div>
+                <div style={{ fontSize: '0.65rem', color: isNode2Chatty ? T.accent : T.textMuted }}>{isNode2Chatty ? 'Line busy' : 'Listening'}</div>
+                {cdPhase === 'BACKOFF' && <div style={{ position: 'absolute', top: -26, left: '50%', transform: 'translateX(-50%)', backgroundColor: T.danger, color: '#fff', fontSize: '0.6rem', padding: '2px 6px', borderRadius: '4px', fontWeight: 700, whiteSpace: 'nowrap' }}>Backoff: 9 ms</div>}
+                {cdPhase === 'SUCCESS' && <div style={{ position: 'absolute', top: -16, right: -8, color: T.success, fontSize: '1.2rem' }}>&#10003;</div>}
               </div>
 
             </div>
+            <p style={{ margin: '1rem 0 0', fontSize: '0.75rem', color: T.textMuted, textAlign: 'center' }}>
+              {cdPhase === 'IDLE' ? 'Click Host 1 or Host 2 to mark them as already transmitting before starting.' : ''}
+            </p>
           </div>
 
-          {/* CONTROL STRATEGY INTERACTION DASHBOARD */}
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '1.5rem' }}>
-            <div style={{ backgroundColor: styles.setupBg, padding: '1.25rem', borderRadius: '8px', display: 'flex', gap: '10px', alignItems: 'center' }}>
-              <button type="button" onClick={handleNextCdStep} disabled={isNode1Chatty || isNode2Chatty} style={{ flex: 2, padding: '12px', fontSize: '0.8rem', fontWeight: 'bold', borderRadius: '6px', border: 'none', cursor: isNode1Chatty || isNode2Chatty ? 'not-allowed' : 'pointer', backgroundColor: styles.accent, color: '#fff' }}>
-                {cdStepIndex === 0 ? '🏁 Start Lab Sequence' : cdStepIndex === cdSteps.length - 1 ? '🔄 Reset Simulation' : '⏩ Next Blueprint Step'}
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))', gap: '1rem' }}>
+            <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+              <button type="button" onClick={handleNextCdStep} disabled={isNode1Chatty || isNode2Chatty}
+                style={{ flex: 2, padding: '0.7rem', borderRadius: '6px', border: 'none', backgroundColor: T.accent, color: '#fff', fontWeight: 700, cursor: (isNode1Chatty || isNode2Chatty) ? 'not-allowed' : 'pointer', opacity: (isNode1Chatty || isNode2Chatty) ? 0.5 : 1, fontSize: '0.875rem' }}>
+                {cdStepIndex === 0 ? 'Start' : cdStepIndex === cdSteps.length - 1 ? 'Restart' : 'Next step'}
               </button>
-              {cdStepIndex > 0 && (
-                <button type="button" onClick={resetCdEngine} style={{ flex: 1, padding: '12px', fontSize: '0.8rem', fontWeight: 'bold', borderRadius: '6px', border: `1px solid ${styles.blk}`, color: styles.blk, background: 'transparent', cursor: 'pointer' }}>Reset</button>
-              )}
+              {cdStepIndex > 0 && <button type="button" onClick={resetCd} style={{ flex: 1, padding: '0.7rem', borderRadius: '6px', border: `1px solid ${T.borderColor}`, backgroundColor: 'transparent', color: T.textSecondary, cursor: 'pointer', fontWeight: 600, fontSize: '0.875rem' }}>Reset</button>}
             </div>
+            <div style={{ backgroundColor: T.termBg, padding: '1rem', borderRadius: '8px', border: `1px solid ${T.termBorder}` }}>
+              <div style={{ fontSize: '0.7rem', fontFamily: 'monospace', color: T.termMuted, borderBottom: `1px solid ${T.termBorder}`, paddingBottom: '4px', marginBottom: '8px', fontWeight: 700 }}>CSMA/CD — step {cdStepIndex} of {cdSteps.length - 1}</div>
+              <div style={{ fontFamily: 'monospace', fontSize: '0.82rem', color: isCollision ? T.danger : T.termText, lineHeight: '1.5' }}>{cdSteps[cdStepIndex].log}</div>
+            </div>
+          </div>
 
-            <div style={{ backgroundColor: styles.terminalBg, padding: '1rem', borderRadius: '8px', border: '1px solid #1e293b', fontFamily: 'monospace', fontSize: '0.75rem', lineHeight: '1.5', color: styles.terminalText }}>
-              <span style={{ color: '#475569', display: 'block', borderBottom: '1px solid #1e293b', paddingBottom: '4px', marginBottom: '8px', fontWeight: 'bold' }}>CSMA/CD MANUAL MONITOR [STEP {cdStepIndex} / 6]</span>
-              <div style={{ color: ['COLLISION', 'JAMMING'].includes(cdPhase) ? styles.blk : '#cbd5e1' }}>{cdSteps[cdStepIndex].log}</div>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))', gap: '1rem', paddingTop: '1rem', borderTop: T.border }}>
+            <div>
+              <h4 style={{ margin: '0 0 6px', fontSize: '0.9rem', fontWeight: 700, color: T.accent }}>Reactive by design</h4>
+              <p style={{ margin: 0, color: T.textSecondary, fontSize: '0.82rem', lineHeight: '1.6' }}>CSMA/CD lets collisions happen, then recovers with a jam signal and random backoff. Modern switches eliminated this problem entirely by giving each device a dedicated full-duplex link — so CSMA/CD is effectively retired.</p>
+            </div>
+            <div>
+              <h4 style={{ margin: '0 0 6px', fontSize: '0.9rem', fontWeight: 700, color: T.danger }}>Half-duplex legacy</h4>
+              <p style={{ margin: 0, color: T.textSecondary, fontSize: '0.82rem', lineHeight: '1.6' }}>Old hubs repeated signals to every port, forcing half-duplex operation — a device could not listen while transmitting. Switches replaced hubs and gave each port its own TX/RX pair, making collisions physically impossible.</p>
             </div>
           </div>
         </div>
       )}
 
-      {/* ========================================== */}
-      {/* VIEWPORT 2: CSMA/CA INTERFACE              */}
-      {/* ========================================== */}
+      {/* ── CSMA/CA ── */}
       {activeTab === 'CA' && (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
-          
-          <div style={{ backgroundColor: '#05070f', border: '1px solid #1e293b', padding: '2.5rem 1rem', borderRadius: '12px', position: 'relative' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', position: 'relative', width: '100%', maxWidth: '700px', margin: '0 auto' }}>
-              
-              {/* LAPTOP A */}
-              <div style={{ zIndex: 2, padding: '12px', borderRadius: '8px', backgroundColor: '#0f172a', border: `2px solid ${styles.fwd}`, textAlign: 'center', position: 'relative' }}>
-                <div style={{ fontSize: '2rem' }}>💻</div>
-                <div style={{ fontSize: '0.7rem', fontWeight: 'bold', marginTop: '4px', color: styles.fwd }}>Laptop A</div>
-                {caPhase === 'DIFS' && <div style={{ position: 'absolute', top: '-25px', left: '50%', transform: 'translateX(-50%)', backgroundColor: '#2563eb', color: '#fff', fontSize: '0.55rem', padding: '2px 5px', borderRadius: '4px', fontWeight: 'bold' }}>IFS_DELAY</div>}
-                {caPhase === 'SUCCESS' && <div style={{ position: 'absolute', top: '-15px', right: '-10px', fontSize: '1.3rem' }}>✅</div>}
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+
+          {/* Canvas */}
+          <div style={{ backgroundColor: T.insetBg, border: T.border, padding: '2rem 1rem', borderRadius: '12px' }}>
+            <div style={{ display: 'flex', alignItems: 'center', maxWidth: 680, margin: '0 auto', width: '100%', gap: 0 }}>
+
+              {/* Laptop A */}
+              <div style={{ zIndex: 2, padding: '10px 14px', borderRadius: '8px', backgroundColor: T.panelBg, border: `2px solid ${T.success}`, textAlign: 'center', minWidth: 90, position: 'relative' }}>
+                <div style={{ fontSize: '1.5rem' }}>&#128187;</div>
+                <div style={{ fontSize: '0.72rem', fontWeight: 700, marginTop: 4, color: T.success }}>Laptop A</div>
+                {caPhase === 'DIFS' && <div style={{ position: 'absolute', top: -26, left: '50%', transform: 'translateX(-50%)', backgroundColor: T.accent, color: '#fff', fontSize: '0.6rem', padding: '2px 6px', borderRadius: '4px', fontWeight: 700, whiteSpace: 'nowrap' }}>Waiting DIFS</div>}
+                {caPhase === 'SUCCESS' && <div style={{ color: T.success, position: 'absolute', top: -18, right: -8, fontSize: '1.2rem' }}>&#10003;</div>}
               </div>
 
-              {/* RF WAVE GAP */}
-              <div style={{ flex: 1, position: 'relative', height: '40px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                <div style={{ color: '#1e293b', fontSize: '1.2rem', letterSpacing: '6px', fontFamily: 'monospace' }}>~~~~~~~~</div>
-                
-                {caPhase === 'RTS' && (
-                  <div style={{ position: 'absolute', padding: '3px 8px', backgroundColor: styles.lst, borderRadius: '10px', left: `${caProgress}%`, transform: 'translateX(-50%)', fontSize: '0.55rem', color: '#000', fontWeight: 'bold', fontFamily: 'monospace' }}>RTS</div>
-                )}
-                {caPhase === 'CTS' && (
-                  <div style={{ position: 'absolute', padding: '3px 8px', backgroundColor: styles.fwd, borderRadius: '10px', right: `${caProgress}%`, transform: 'translateX(50%)', fontSize: '0.55rem', color: '#fff', fontWeight: 'bold', fontFamily: 'monospace' }}>CTS</div>
-                )}
-                {caPhase === 'DATA' && (
-                  <div style={{ position: 'absolute', padding: '4px 10px', backgroundColor: styles.accent, borderRadius: '4px', left: `${caProgress}%`, transform: 'translateX(-50%)', fontSize: '0.6rem', color: '#fff', fontWeight: 'bold', fontFamily: 'monospace' }}>802.11_DATA</div>
-                )}
-                {caPhase === 'ACK' && (
-                  <div style={{ position: 'absolute', padding: '3px 8px', backgroundColor: styles.fwd, borderRadius: '10px', right: `${caProgress}%`, transform: 'translateX(50%)', fontSize: '0.55rem', color: '#fff', fontWeight: 'bold', fontFamily: 'monospace' }}>ACK</div>
-                )}
+              {/* Air A-to-AP */}
+              <div style={{ flex: 1, position: 'relative', height: 40, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                <div style={{ color: T.borderColor, fontSize: '1.1rem', letterSpacing: 4, fontFamily: 'monospace' }}>{'~'.repeat(8)}</div>
+                {caPhase === 'RTS' && <div style={{ position: 'absolute', padding: '2px 8px', backgroundColor: T.warning, borderRadius: 10, left: `${caProgress}%`, transform: 'translateX(-50%)', fontSize: '0.6rem', color: '#000', fontWeight: 700, fontFamily: 'monospace' }}>RTS</div>}
+                {caPhase === 'CTS' && <div style={{ position: 'absolute', padding: '2px 8px', backgroundColor: T.success, borderRadius: 10, right: `${caProgress}%`, transform: 'translateX(50%)', fontSize: '0.6rem', color: '#fff', fontWeight: 700, fontFamily: 'monospace' }}>CTS</div>}
+                {caPhase === 'DATA' && <div style={{ position: 'absolute', padding: '3px 8px', backgroundColor: T.accent, borderRadius: 4, left: `${caProgress}%`, transform: 'translateX(-50%)', fontSize: '0.6rem', color: '#fff', fontWeight: 700, fontFamily: 'monospace' }}>DATA</div>}
+                {caPhase === 'ACK' && <div style={{ position: 'absolute', padding: '2px 8px', backgroundColor: T.success, borderRadius: 10, right: `${caProgress}%`, transform: 'translateX(50%)', fontSize: '0.6rem', color: '#fff', fontWeight: 700, fontFamily: 'monospace' }}>ACK</div>}
               </div>
 
-              {/* ACCESS POINT */}
-              <div style={{ zIndex: 2, padding: '12px', borderRadius: '8px', backgroundColor: '#0f172a', border: '2px solid #334155', textAlign: 'center' }}>
-                <div style={{ fontSize: '2rem' }}>📡</div>
-                <div style={{ fontSize: '0.7rem', fontWeight: 'bold', marginTop: '4px' }}>BSSID_AP_01</div>
+              {/* AP */}
+              <div style={{ zIndex: 2, padding: '10px 14px', borderRadius: '8px', backgroundColor: T.panelBg, border: `2px solid ${T.borderColor}`, textAlign: 'center', minWidth: 90 }}>
+                <div style={{ fontSize: '1.5rem' }}>&#128225;</div>
+                <div style={{ fontSize: '0.72rem', fontWeight: 700, marginTop: 4 }}>Access Point</div>
               </div>
 
-              {/* WIRELESS WAVE GAP B */}
-              <div style={{ flex: 1, position: 'relative', height: '40px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                <div style={{ color: '#1e293b', fontSize: '1.2rem', letterSpacing: '6px', fontFamily: 'monospace' }}>~~~~~~~~</div>
-                {caPhase === 'CTS' && (
-                  <div style={{ position: 'absolute', padding: '3px 8px', backgroundColor: styles.blk, borderRadius: '10px', left: `${caProgress}%`, transform: 'translateX(-50%)', fontSize: '0.55rem', color: '#fff', fontWeight: 'bold', fontFamily: 'monospace' }}>CTS</div>
-                )}
+              {/* Air AP-to-B */}
+              <div style={{ flex: 1, position: 'relative', height: 40, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                <div style={{ color: T.borderColor, fontSize: '1.1rem', letterSpacing: 4, fontFamily: 'monospace' }}>{'~'.repeat(8)}</div>
+                {caPhase === 'CTS' && <div style={{ position: 'absolute', padding: '2px 8px', backgroundColor: T.danger, borderRadius: 10, left: `${caProgress}%`, transform: 'translateX(-50%)', fontSize: '0.6rem', color: '#fff', fontWeight: 700, fontFamily: 'monospace' }}>CTS</div>}
               </div>
 
-              {/* LAPTOP B */}
-              <div style={{ zIndex: 2, padding: '12px', borderRadius: '8px', backgroundColor: '#0f172a', border: `2px solid ${navTimer > 0 ? styles.blk : '#334155'}`, textAlign: 'center', position: 'relative' }}>
-                <div style={{ fontSize: '2rem' }}>📱</div>
-                <div style={{ fontSize: '0.7rem', fontWeight: 'bold', marginTop: '4px' }}>Laptop B (Hidden)</div>
-                {navTimer > 0 && (
-                  <div style={{ position: 'absolute', top: '-25px', left: '50%', transform: 'translateX(-50%)', backgroundColor: styles.blk, color: '#fff', fontSize: '0.55rem', padding: '3px 6px', borderRadius: '4px', fontWeight: 'bold', whiteSpace: 'nowrap', fontFamily: 'monospace' }}>
-                    Layout Blocked: {(navTimer * 0.1).toFixed(1)}s
-                  </div>
-                )}
+              {/* Laptop B */}
+              <div style={{ zIndex: 2, padding: '10px 14px', borderRadius: '8px', backgroundColor: T.panelBg, border: `2px solid ${navTimer > 0 ? T.danger : T.borderColor}`, textAlign: 'center', minWidth: 90, position: 'relative' }}>
+                <div style={{ fontSize: '1.5rem' }}>&#128241;</div>
+                <div style={{ fontSize: '0.72rem', fontWeight: 700, marginTop: 4 }}>Laptop B</div>
+                <div style={{ fontSize: '0.65rem', color: navTimer > 0 ? T.danger : T.textMuted }}>{navTimer > 0 ? 'NAV locked' : 'Listening'}</div>
+                {navTimer > 0 && <div style={{ position: 'absolute', top: -26, left: '50%', transform: 'translateX(-50%)', backgroundColor: T.danger, color: '#fff', fontSize: '0.6rem', padding: '2px 6px', borderRadius: '4px', fontWeight: 700, whiteSpace: 'nowrap', fontFamily: 'monospace' }}>NAV: {(navTimer * 0.1).toFixed(1)}s</div>}
               </div>
 
             </div>
           </div>
 
-          {/* CONTROLS */}
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '1.5rem' }}>
-            <div style={{ backgroundColor: styles.setupBg, padding: '1rem', borderRadius: '8px', display: 'flex', gap: '10px', alignItems: 'center' }}>
-              <button type="button" onClick={handleNextCaStep} style={{ flex: 2, padding: '12px', fontSize: '0.8rem', fontWeight: 'bold', borderRadius: '6px', border: 'none', cursor: 'pointer', backgroundColor: styles.fwd, color: '#fff' }}>
-                {caStepIndex === 0 ? '🏁 Start Lab Sequence' : caStepIndex === caSteps.length - 1 ? '🔄 Reset Simulation' : '⏩ Next Blueprint Step'}
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))', gap: '1rem' }}>
+            <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+              <button type="button" onClick={handleNextCaStep}
+                style={{ flex: 2, padding: '0.7rem', borderRadius: '6px', border: 'none', backgroundColor: T.success, color: '#fff', fontWeight: 700, cursor: 'pointer', fontSize: '0.875rem' }}>
+                {caStepIndex === 0 ? 'Start' : caStepIndex === caSteps.length - 1 ? 'Restart' : 'Next step'}
               </button>
-              {caStepIndex > 0 && (
-                <button type="button" onClick={resetCaEngine} style={{ flex: 1, padding: '12px', fontSize: '0.8rem', fontWeight: 'bold', borderRadius: '6px', border: `1px solid ${styles.blk}`, color: styles.blk, background: 'transparent', cursor: 'pointer' }}>Reset</button>
-              )}
+              {caStepIndex > 0 && <button type="button" onClick={resetCa} style={{ flex: 1, padding: '0.7rem', borderRadius: '6px', border: `1px solid ${T.borderColor}`, backgroundColor: 'transparent', color: T.textSecondary, cursor: 'pointer', fontWeight: 600, fontSize: '0.875rem' }}>Reset</button>}
             </div>
+            <div style={{ backgroundColor: T.termBg, padding: '1rem', borderRadius: '8px', border: `1px solid ${T.termBorder}` }}>
+              <div style={{ fontSize: '0.7rem', fontFamily: 'monospace', color: T.termMuted, borderBottom: `1px solid ${T.termBorder}`, paddingBottom: '4px', marginBottom: '8px', fontWeight: 700 }}>CSMA/CA — step {caStepIndex} of {caSteps.length - 1}</div>
+              <div style={{ fontFamily: 'monospace', fontSize: '0.82rem', color: T.termText, lineHeight: '1.5' }}>{caSteps[caStepIndex].log}</div>
+            </div>
+          </div>
 
-            <div style={{ backgroundColor: styles.terminalBg, padding: '1rem', borderRadius: '8px', border: '1px solid #1e293b', fontFamily: 'monospace', fontSize: '0.75rem', lineHeight: '1.5', color: styles.fwd }}>
-              <span style={{ color: '#475569', display: 'block', borderBottom: '1px solid #1e293b', paddingBottom: '4px', marginBottom: '8px', fontWeight: 'bold' }}>802.11 AIR_MEDIUM RADIO_MON [STEP {caStepIndex} / 6]</span>
-              <div style={{ color: '#cbd5e1' }}>{caSteps[caStepIndex].log}</div>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))', gap: '1rem', paddingTop: '1rem', borderTop: T.border }}>
+            <div>
+              <h4 style={{ margin: '0 0 6px', fontSize: '0.9rem', fontWeight: 700, color: T.success }}>The hidden node problem</h4>
+              <p style={{ margin: 0, color: T.textSecondary, fontSize: '0.82rem', lineHeight: '1.6' }}>Laptop A and Laptop B may both reach the access point but be completely out of radio range of each other. Without an explicit handshake, both devices could transmit simultaneously — causing a collision at the AP that neither sender can detect.</p>
+            </div>
+            <div>
+              <h4 style={{ margin: '0 0 6px', fontSize: '0.9rem', fontWeight: 700, color: T.warning }}>Network Allocation Vector (NAV)</h4>
+              <p style={{ margin: 0, color: T.textSecondary, fontSize: '0.82rem', lineHeight: '1.6' }}>The CTS frame includes a duration field. Every device in the cell reads this and sets a local NAV countdown timer — effectively a virtual "do not transmit" lock. When the timer hits zero, the medium reopens for contention.</p>
             </div>
           </div>
         </div>
       )}
-
-      {/* ========================================== */}
-      {/* THEORY CONTENT INSTRUCTIONAL CHIPS        */}
-      {/* ========================================== */}
-      <div style={{ borderTop: '2px solid rgba(255,255,255,0.05)', paddingTop: '1.5rem', marginTop: '1.5rem', display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '1.5rem', fontSize: '0.8rem', lineHeight: '1.5' }}>
-        
-        {activeTab === 'CD' && (
-          <>
-            <div>
-              <h4 style={{ margin: '0 0 4px 0', fontSize: '0.9rem', fontWeight: 700, color: styles.accent }}>💥 The Reactionary Approach</h4>
-              <p style={{ margin: 0, color: styles.textMuted, fontSize: '0.78rem' }}>
-                CSMA/CD is inherently reactive. It assumes the wire is clear, injecting electrical frequencies blindly and listening down the wire pins for reflections. When a voltage surge spike occurs, the <strong>JAM signal</strong> commands all stations to drop frames instantly and pause for randomized integer periods to prevent harmonic re-collisions.
-              </p>
-            </div>
-            <div>
-              <h4 style={{ margin: '0 0 4px 0', fontSize: '0.9rem', fontWeight: 700, color: styles.blk }}>☠️ Half-Duplex Legacy Constraints</h4>
-              <p style={{ margin: 0, color: styles.textMuted, fontSize: '0.78rem' }}>
-                Because legacy network Hubs duplicated signals across all ports, lines were restricted to <em>Half-Duplex</em> loops where a device could not listen while transmitting. Modern switches provide isolated ASIC <em>Full-Duplex</em> lanes, segregating TX/RX wires to make media collisions physically impossible. This renders CSMA/CD permanently legacy and disabled on modern networks.
-              </p>
-            </div>
-          </>
-        )}
-
-        {activeTab === 'CA' && (
-          <>
-            <div>
-              <h4 style={{ margin: '0 0 4px 0', fontSize: '0.9rem', fontWeight: 700, color: styles.fwd }}>🛡️ The Hidden Node Dilemma</h4>
-              <p style={{ margin: 0, color: styles.textMuted, fontSize: '0.78rem' }}>
-                Wireless antennas cannot transmit and listen at the same frequency simultaneously, making structural collision detection impossible. Furthermore, Laptop A and Laptop B might both hit the AP but remain completely blind to each other's presence (**Hidden Nodes**), rendering standard media listening blind without explicit handshakes.
-              </p>
-            </div>
-            <div>
-              <h4 style={{ margin: '0 0 4px 0', fontSize: '0.9rem', fontWeight: 700, color: styles.lst }}>⏱️ The Virtual Carrier Sense (NAV)</h4>
-              <p style={{ margin: 0, color: styles.textMuted, fontSize: '0.78rem' }}>
-                To preemptively preserve local airspace corridors, the AP appends a precise payload timeline variable inside its broadcasted <strong>CTS (Clear-To-Send)</strong> packet. Every listener node inside the radio cell footprint reads this value and initializes a local **Network Allocation Vector (NAV) timer**, sealing its antenna transmitter loop until the current transmission clears out completely.
-              </p>
-            </div>
-          </>
-        )}
-        
-      </div>
 
     </div>
   );

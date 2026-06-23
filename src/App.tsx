@@ -36,6 +36,9 @@ const GatewayLabLazy        = lazyLab(() => import('./GatewayLab'),           'G
 const DynamicRoutingLazy    = lazyLab(() => import('./DynamicRoutingLab'),    'DynamicRoutingLab');
 const PowerShellLazy        = lazyLab(() => import('./PowerShellCheatsheet'), 'PowerShellCheatsheet');
 const PracticeStationLazy   = lazyLab(() => import('./PracticeStation'),      'PracticeStation');
+const TcpLabLazy            = lazyLab(() => import('./TcpLab'),               'TcpLab');
+const NatLabLazy            = lazyLab(() => import('./NatLab'),               'NatLab');
+const FirewallLabLazy       = lazyLab(() => import('./FirewallLab'),          'FirewallLab');
 
 // ==========================================
 // 2. DEFENSIVE FAIL-SAFE WRAPPER ENGINE
@@ -81,6 +84,7 @@ const WORKSPACE_REGISTRY = [
       { id: 'headerInspector', label: 'Packets vs. Frames',         component: HeaderInspectorLazy, name: 'HeaderInspector' },
       { id: 'protocolMapper',  label: 'Protocol Data Units',        component: ProtocolMapperLazy,  name: 'ProtocolMapper' },
       { id: 'icmpLab',         label: 'How Ping Works (ICMP)',      component: IcmpLabLazy,         name: 'IcmpLab' },
+      { id: 'tcpLab',          label: 'TCP Connection Lifecycle',   component: TcpLabLazy,          name: 'TcpLab' },
       { id: 'wirelessToWired', label: 'Wireless-to-Wired Path',     component: WirelessToWiredLazy, name: 'WirelessToWiredLab' },
     ]
   },
@@ -107,6 +111,7 @@ const WORKSPACE_REGISTRY = [
       { id: 'lpmSim',     label: 'Longest Prefix Match',     component: LpmSimulatorLazy,   name: 'LpmSimulator' },
       { id: 'gatewayLab', label: 'Gateway & Backup Routes',  component: GatewayLabLazy,     name: 'GatewayLab' },
       { id: 'dynamicLab', label: 'Routing Protocols Matrix', component: DynamicRoutingLazy, name: 'DynamicRoutingLab' },
+      { id: 'natLab',     label: 'NAT / PAT Simulator',      component: NatLabLazy,         name: 'NatLab' },
     ]
   },
   {
@@ -122,8 +127,9 @@ const WORKSPACE_REGISTRY = [
   {
     catId: 'security', catLabel: 'Security',
     tools: [
-      { id: 'layer2', label: 'Layer 2 Attack Mitigation', component: Layer2SecurityLazy, name: 'Layer2SecurityLab' },
-      { id: 'aclLab', label: 'ACL Rules Simulator',       component: AclLabLazy,         name: 'AclLab' },
+      { id: 'layer2',      label: 'Layer 2 Attack Mitigation', component: Layer2SecurityLazy, name: 'Layer2SecurityLab' },
+      { id: 'aclLab',     label: 'ACL Rules Simulator',       component: AclLabLazy,         name: 'AclLab' },
+      { id: 'firewallLab', label: 'Firewall Zone Policy',      component: FirewallLabLazy,    name: 'FirewallLab' },
     ]
   },
   {
@@ -193,6 +199,26 @@ export default function App() {
     } catch { return true; }
   });
 
+  const [completed, setCompleted] = useState<Set<string>>(() => {
+    try {
+      const saved = localStorage.getItem('netforge-progress');
+      return saved ? new Set(JSON.parse(saved) as string[]) : new Set();
+    } catch { return new Set(); }
+  });
+
+  useEffect(() => {
+    try { localStorage.setItem('netforge-progress', JSON.stringify([...completed])); }
+    catch { /* storage unavailable */ }
+  }, [completed]);
+
+  const toggleComplete = (toolId: string) => {
+    setCompleted(prev => {
+      const next = new Set(prev);
+      next.has(toolId) ? next.delete(toolId) : next.add(toolId);
+      return next;
+    });
+  };
+
   useEffect(() => {
     try { localStorage.setItem('netforge-theme', isDarkMode ? 'dark' : 'light'); }
     catch { /* storage unavailable */ }
@@ -219,6 +245,11 @@ export default function App() {
   const T = isDarkMode ? THEME.dark : THEME.light;
   const currentCat = WORKSPACE_REGISTRY.find(c => c.catId === activeCategory) ?? WORKSPACE_REGISTRY[0];
   const selectedTool = currentCat.tools.find(t => t.id === activeTool) ?? currentCat.tools[0];
+  const isCurrentDone = completed.has(selectedTool.id);
+
+  const totalLabs = WORKSPACE_REGISTRY.reduce((n, c) => n + c.tools.length, 0);
+  const totalDone = completed.size;
+  const progressPct = Math.round((totalDone / totalLabs) * 100);
 
   const sidebarItemBase: React.CSSProperties = {
     width: '100%', display: 'block', background: 'none', border: 'none',
@@ -231,13 +262,29 @@ export default function App() {
       {/* ── SIDEBAR ── */}
       <aside style={{ width: 232, flexShrink: 0, display: 'flex', flexDirection: 'column', height: '100vh', backgroundColor: T.sidebarBg, borderRight: `1px solid ${T.border}` }}>
 
-        {/* Logo */}
-        <div style={{ padding: '1.1rem 1rem 1rem', borderBottom: `1px solid ${T.border}`, flexShrink: 0 }}>
+        {/* Logo + progress */}
+        <div style={{ padding: '1.1rem 1rem 0.875rem', borderBottom: `1px solid ${T.border}`, flexShrink: 0 }}>
           <div style={{ fontSize: '1rem', fontWeight: 800, letterSpacing: '-0.02em', color: T.textPrimary, lineHeight: 1 }}>
             NET<span style={{ color: T.accent }}>FORGE</span>
           </div>
           <div style={{ fontSize: '0.65rem', color: T.textMuted, marginTop: '4px', letterSpacing: '0.08em', textTransform: 'uppercase', fontWeight: 600 }}>
             Network Training Suite
+          </div>
+          {/* Progress bar */}
+          <div style={{ marginTop: '0.75rem' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '4px' }}>
+              <span style={{ fontSize: '0.62rem', color: T.textMuted, fontWeight: 600 }}>Progress</span>
+              <span style={{ fontSize: '0.62rem', color: totalDone > 0 ? T.accent : T.textMuted, fontWeight: 700 }}>
+                {totalDone}/{totalLabs}
+              </span>
+            </div>
+            <div style={{ height: '4px', backgroundColor: T.border, borderRadius: '2px', overflow: 'hidden' }}>
+              <div style={{
+                height: '100%', width: `${progressPct}%`,
+                backgroundColor: progressPct === 100 ? '#3fb950' : T.accent,
+                borderRadius: '2px', transition: 'width 0.3s ease',
+              }} />
+            </div>
           </div>
         </div>
 
@@ -245,6 +292,7 @@ export default function App() {
         <nav style={{ flex: 1, overflowY: 'auto', padding: '0.75rem 0' }}>
           {WORKSPACE_REGISTRY.map(cat => {
             const isOpen = activeCategory === cat.catId;
+            const catDone = cat.tools.filter(t => completed.has(t.id)).length;
             return (
               <div key={cat.catId} style={{ marginBottom: '0.25rem' }}>
 
@@ -258,29 +306,45 @@ export default function App() {
                     fontSize: '0.68rem', fontWeight: 700, letterSpacing: '0.07em', textTransform: 'uppercase',
                   }}
                 >
-                  {cat.catLabel}
-                  <span style={{ fontSize: '0.5rem', opacity: 0.5 }}>{isOpen ? '▲' : '▼'}</span>
+                  <span>{cat.catLabel}</span>
+                  <span style={{ display: 'flex', alignItems: 'center', gap: '5px' }}>
+                    {catDone > 0 && (
+                      <span style={{ fontSize: '0.6rem', color: catDone === cat.tools.length ? '#3fb950' : T.accent, fontWeight: 700, fontVariantNumeric: 'tabular-nums' }}>
+                        {catDone}/{cat.tools.length}
+                      </span>
+                    )}
+                    <span style={{ fontSize: '0.5rem', opacity: 0.5 }}>{isOpen ? '▲' : '▼'}</span>
+                  </span>
                 </button>
 
                 {isOpen && (
                   <div>
                     {cat.tools.map(tool => {
                       const isActive = activeTool === tool.id;
+                      const isDone = completed.has(tool.id);
                       return (
                         <button
                           key={tool.id}
                           onClick={() => setActiveTool(tool.id)}
                           style={{
                             ...sidebarItemBase,
-                            padding: '0.38rem 0.875rem 0.38rem 1.1rem',
+                            padding: '0.38rem 0.6rem 0.38rem 1.1rem',
                             borderLeft: `2px solid ${isActive ? T.accent : 'transparent'}`,
                             backgroundColor: isActive ? T.activeBg : 'transparent',
                             color: isActive ? T.activeText : T.navText,
                             fontSize: '0.8rem', fontWeight: isActive ? 600 : 400,
                             lineHeight: 1.45,
+                            display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '6px',
                           }}
                         >
-                          {tool.label}
+                          <span style={{ flexGrow: 1 }}>{tool.label}</span>
+                          {isDone && (
+                            <span style={{
+                              width: 14, height: 14, borderRadius: '50%', flexShrink: 0,
+                              backgroundColor: '#3fb950', display: 'flex', alignItems: 'center', justifyContent: 'center',
+                              fontSize: '8px', color: '#fff', fontWeight: 900, lineHeight: 1,
+                            }}>✓</span>
+                          )}
                         </button>
                       );
                     })}
@@ -315,12 +379,31 @@ export default function App() {
         {/* Breadcrumb bar */}
         <div style={{
           backgroundColor: T.headerBg, borderBottom: `1px solid ${T.border}`,
-          padding: '0.7rem 1.5rem', display: 'flex', alignItems: 'center', gap: '0.35rem',
+          padding: '0.55rem 1.5rem', display: 'flex', alignItems: 'center', gap: '0.35rem',
           fontSize: '0.78rem', flexShrink: 0,
         }}>
           <span style={{ color: T.textMuted, fontWeight: 500 }}>{currentCat.catLabel}</span>
           <span style={{ color: T.border, fontSize: '1rem', lineHeight: 1 }}>›</span>
-          <span style={{ color: T.textPrimary, fontWeight: 600 }}>{selectedTool.label}</span>
+          <span style={{ color: T.textPrimary, fontWeight: 600, flexGrow: 1 }}>{selectedTool.label}</span>
+          <button
+            onClick={() => toggleComplete(selectedTool.id)}
+            style={{
+              display: 'flex', alignItems: 'center', gap: '6px',
+              padding: '0.3rem 0.75rem', border: `1px solid ${isCurrentDone ? '#3fb950' : T.border}`,
+              borderRadius: '5px', cursor: 'pointer', fontSize: '0.72rem', fontWeight: 600,
+              backgroundColor: isCurrentDone ? (isDarkMode ? 'rgba(63,185,80,0.12)' : 'rgba(26,127,55,0.08)') : T.toggleBg,
+              color: isCurrentDone ? '#3fb950' : T.textMuted,
+              transition: 'all 0.15s',
+            }}
+          >
+            <span style={{
+              width: 13, height: 13, borderRadius: '50%', border: `1.5px solid ${isCurrentDone ? '#3fb950' : T.border}`,
+              backgroundColor: isCurrentDone ? '#3fb950' : 'transparent',
+              display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
+              fontSize: '8px', color: '#fff', fontWeight: 900, flexShrink: 0,
+            }}>{isCurrentDone ? '✓' : ''}</span>
+            {isCurrentDone ? 'Completed' : 'Mark complete'}
+          </button>
         </div>
 
         {/* Lab content */}

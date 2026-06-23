@@ -1,241 +1,311 @@
-import React, { useState, useEffect } from 'react';
+﻿import React, { useState, useRef, useCallback } from 'react';
+import { getLabTheme } from './labTheme';
 
-interface WifiBeamformingProps {
-  isDarkMode?: boolean;
-}
+interface WifiBeamformingProps { isDarkMode?: boolean; }
+
+type Mode = 'omni' | 'beam' | 'mu-mimo';
+
+const CX = 200, CY = 200, MAX_R = 150;
+
+const toRad = (deg: number) => (deg * Math.PI) / 180;
+
+const pointOnRing = (angleDeg: number, r: number) => ({
+  x: CX + r * Math.sin(toRad(angleDeg)),
+  y: CY - r * Math.cos(toRad(angleDeg)),
+});
+
+const angleOf = (x: number, y: number) => {
+  const dx = x - CX, dy = y - CY;
+  let a = Math.atan2(dx, -dy) * (180 / Math.PI);
+  if (a < 0) a += 360;
+  return a;
+};
+
+const clampRing = (x: number, y: number, minR = 55, maxR = 148) => {
+  const dx = x - CX, dy = y - CY;
+  const d = Math.sqrt(dx * dx + dy * dy) || 1;
+  const r = Math.max(minR, Math.min(maxR, d));
+  return { x: CX + (dx / d) * r, y: CY + (dy / d) * r };
+};
+
+const gaussLobe = (angleDeg: number, targetDeg: number, sigma = 28) => {
+  const diff = Math.min(Math.abs(angleDeg - targetDeg), 360 - Math.abs(angleDeg - targetDeg));
+  return Math.exp(-(diff * diff) / (2 * sigma * sigma));
+};
+
+const gainAt = (angleDeg: number, mode: Mode, a1: number, a2: number): number => {
+  if (mode === 'omni') return 0.62;
+  if (mode === 'beam') return 0.08 + 0.88 * gaussLobe(angleDeg, a1);
+  const g1 = gaussLobe(angleDeg, a1);
+  const g2 = gaussLobe(angleDeg, a2);
+  return 0.08 + 0.88 * Math.max(g1, g2);
+};
+
+const buildPath = (mode: Mode, a1: number, a2: number): string => {
+  const N = 360;
+  const pts = Array.from({ length: N }, (_, i) => {
+    const r = gainAt(i, mode, a1, a2) * MAX_R;
+    return pointOnRing(i, r);
+  });
+  return pts.map((p, i) => `${i === 0 ? 'M' : 'L'} ${p.x.toFixed(1)} ${p.y.toFixed(1)}`).join(' ') + ' Z';
+};
+
+const gainTodBm = (g: number) => Math.round(-30 - (1 - g) * 35);
+
+const MODE_INFO: Record<Mode, { label: string; desc: string }> = {
+  omni: {
+    label: 'Omni-directional',
+    desc: 'No phase adjustment is applied. The AP radiates uniformly in all directions — simple, but signal energy is wasted on directions with no clients.',
+  },
+  beam: {
+    label: 'Explicit beamforming (SU-MIMO)',
+    desc: 'The client sends a VHT steering matrix (compressed beamforming feedback) to the AP. The AP phase-shifts its antenna elements to focus a main lobe precisely toward the client, boosting gain by up to +6 dB.',
+  },
+  'mu-mimo': {
+    label: 'MU-MIMO (802.11ac Wave 2+)',
+    desc: 'The AP serves two (or more) clients simultaneously using separate spatial streams. Each client sees its own focused lobe. Null-steering suppresses interference between streams.',
+  },
+};
 
 export const WifiBeamforming: React.FC<WifiBeamformingProps> = ({ isDarkMode = true }) => {
-  const [mode, setMode] = useState<'omni' | 'implicit' | 'explicit'>('omni');
-  const [clientPos, setClientPos] = useState<{ x: number; y: number }>({ x: 380, y: 120 });
-  const [isDragging, setIsDragging] = useState<boolean>(false);
-  const [wavePhase, setWavePhase] = useState<number>(0);
+  const [mode, setMode] = useState<Mode>('omni');
+  const [client1, setClient1] = useState({ x: CX + 95, y: CY - 95 });
+  const [client2, setClient2] = useState({ x: CX - 80, y: CY + 80 });
+  const [dragging, setDragging] = useState<0 | 1 | 2>(0);
+  const svgContainerRef = useRef<HTMLDivElement>(null);
+  const T = getLabTheme(isDarkMode);
 
-  // Animate RF signal propagation ripples smoothly across the active grid bounds
-  useEffect(() => {
-    const interval = setInterval(() => {
-      setWavePhase(prev => (prev + 0.15) % (Math.PI * 2));
-    }, 30);
-    return () => clearInterval(interval);
-  }, []);
+  const angle1 = angleOf(client1.x, client1.y);
+  const angle2 = angleOf(client2.x, client2.y);
 
-  // Center position of the fixed three-element MIMO Access Point tower
-  const apPos = { x: 80, y: 120 };
+  const gain1 = gainAt(angle1, mode, angle1, angle2);
+  const gain2 = gainAt(angle2, mode, angle1, angle2);
+  const dBm1 = gainTodBm(gain1);
+  const dBm2 = gainTodBm(gain2);
 
-  // Calculate Euclidean physics vectors relative to drag boundaries
-  const dx = clientPos.x - apPos.x;
-  const dy = clientPos.y - apPos.y;
-  const distance = Math.sqrt(dx * dx + dy * dy);
-
-  // Dynamic Signal Math: Explicit feedback gives maximum array gain (+9dBm)
-  const baseLoss = Math.min(50, Math.round(distance / 6));
-  const effectiveSignal = mode === 'omni' 
-    ? -30 - baseLoss 
-    : mode === 'implicit' 
-      ? -30 - Math.round(baseLoss * 0.65)
-      : -30 - Math.round(baseLoss * 0.45); // Explicit beamforming provides optimal phase tracking gain
-
-  const handleContainerMouseMove = (e: React.MouseEvent<HTMLDivElement>) => {
-    if (!isDragging) return;
-    const rect = e.currentTarget.getBoundingClientRect();
-    const nextX = Math.max(160, Math.min(520, e.clientX - rect.left));
-    const nextY = Math.max(20, Math.min(220, e.clientY - rect.top));
-    setClientPos({ x: nextX, y: nextY });
+  const getSVGCoords = (e: React.PointerEvent): { x: number; y: number } => {
+    const el = svgContainerRef.current;
+    if (!el) return { x: CX, y: CY };
+    const rect = el.getBoundingClientRect();
+    return {
+      x: ((e.clientX - rect.left) / rect.width) * 400,
+      y: ((e.clientY - rect.top) / rect.height) * 400,
+    };
   };
 
-  const styles = {
-    panelBg: isDarkMode ? '#111827' : '#ffffff',
-    panelBorder: isDarkMode ? '1px solid rgba(255, 255, 255, 0.05)' : '1px solid rgba(0, 0, 0, 0.06)',
-    textPrimary: isDarkMode ? '#f8fafc' : '#0f172a',
-    descText: isDarkMode ? '#94a3b8' : '#475569',
-    setupBg: isDarkMode ? '#161f30' : '#f1f5f9',
-    chartBg: isDarkMode ? '#0b0f19' : '#f8fafc',
-    terminalBg: '#05050a',
-    terminalText: '#38bdf8',
-    accent: isDarkMode ? '#06b6d4' : '#0284c7',
-    fwd: '#10b981',
-    blk: '#f43f5e',
-    lst: '#eab308'
+  const handlePointerMove = useCallback((e: React.PointerEvent) => {
+    if (dragging === 0) return;
+    const { x, y } = getSVGCoords(e);
+    const clamped = clampRing(x, y);
+    if (dragging === 1) setClient1(clamped);
+    else setClient2(clamped);
+  }, [dragging]);
+
+  const handlePointerDown = (which: 1 | 2) => (e: React.PointerEvent<SVGCircleElement>) => {
+    e.currentTarget.setPointerCapture(e.pointerId);
+    setDragging(which);
   };
 
-  // Angular translation for SVG beam rotation coordinates
-  const rotationRad = Math.atan2(dy, dx);
-  const rotationDeg = (rotationRad * 180) / Math.PI;
+  const handlePointerUp = () => setDragging(0);
+
+  const patternPath = buildPath(mode, angle1, angle2);
+  const c1Pos = pointOnRing(angle1, MAX_R * gain1);
+  const c2Pos = pointOnRing(angle2, MAX_R * gain2);
+
+  const color1 = T.accent;
+  const color2 = '#a855f7';
+
+  const dBmBar = (label: string, dBm: number, gain: number, color: string) => {
+    const pct = Math.max(0, gain * 100);
+    const quality = dBm > -40 ? 'Excellent' : dBm > -50 ? 'Good' : dBm > -60 ? 'Fair' : 'Weak';
+    return (
+      <div style={{ backgroundColor: T.panelBg, border: `1px solid ${color}`, borderRadius: '8px', padding: '10px 12px' }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 5, fontSize: '0.78rem', fontWeight: 700 }}>
+          <span style={{ color }}>{label}</span>
+          <span style={{ fontFamily: 'monospace', color: dBm > -50 ? T.success : T.warning }}>{dBm} dBm</span>
+        </div>
+        <div style={{ height: 5, backgroundColor: T.insetBg, borderRadius: 3, overflow: 'hidden' }}>
+          <div style={{ height: '100%', width: `${pct}%`, backgroundColor: color, borderRadius: 3, transition: 'width 0.1s' }} />
+        </div>
+        <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 3 }}>
+          <span style={{ fontSize: '0.62rem', color: T.textMuted }}>{quality}</span>
+          <span style={{ fontSize: '0.62rem', color: T.textMuted, fontFamily: 'monospace' }}>{Math.round(angle1 === angle2 || label.includes('2') ? angle2 : angle1)}°</span>
+        </div>
+      </div>
+    );
+  };
 
   return (
-    <div style={{ padding: '2rem', backgroundColor: styles.panelBg, borderRadius: '12px', border: styles.panelBorder, color: styles.textPrimary, fontFamily: 'system-ui, sans-serif' }}>
-      
-      {/* HEADER CONTROLS SECTION */}
-      <div style={{ marginBottom: '1.5rem', borderBottom: '1px solid rgba(255,255,255,0.05)', paddingBottom: '1rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '10px' }}>
-        <div>
-          <h3 style={{ fontSize: '1.4rem', fontWeight: 800, margin: 0, letterSpacing: '-0.025em' }}>🎯 Phase-Shifted Wi-Fi Beamforming Visualizer</h3>
-          <p style={{ color: styles.descText, margin: '4px 0 0 0', fontSize: '0.85rem' }}>Model constructive RF wave interference envelopes and localized directional antenna gain vectors.</p>
-        </div>
-        
-        {/* ANTENNA INJECTION MODE CONTROLLER TABS */}
-        <div style={{ display: 'flex', backgroundColor: styles.setupBg, padding: '4px', borderRadius: '8px', border: styles.panelBorder }}>
-          <button type="button" onClick={() => setMode('omni')} style={{ padding: '6px 10px', fontSize: '0.7rem', fontWeight: 'bold', border: 'none', borderRadius: '4px', cursor: 'pointer', backgroundColor: mode === 'omni' ? styles.accent : 'transparent', color: mode === 'omni' ? '#fff' : styles.descText }}>🌐 Omni</button>
-          <button type="button" onClick={() => setMode('implicit')} style={{ padding: '6px 10px', fontSize: '0.7rem', fontWeight: 'bold', border: 'none', borderRadius: '4px', cursor: 'pointer', backgroundColor: mode === 'implicit' ? styles.accent : 'transparent', color: mode === 'implicit' ? '#fff' : styles.descText }}>🚀 Implicit</button>
-          <button type="button" onClick={() => setMode('explicit')} style={{ padding: '6px 10px', fontSize: '0.7rem', fontWeight: 'bold', border: 'none', borderRadius: '4px', cursor: 'pointer', backgroundColor: mode === 'explicit' ? styles.accent : 'transparent', color: mode === 'explicit' ? '#fff' : styles.descText }}>🎯 Explicit (VHT)</button>
-        </div>
+    <div style={{ padding: '2rem', backgroundColor: T.cardBg, borderRadius: '12px', border: T.border, color: T.textPrimary, fontFamily: 'system-ui, sans-serif' }}>
+
+      <div style={{ marginBottom: '1.5rem', paddingBottom: '1rem', borderBottom: T.border }}>
+        <h3 style={{ fontSize: '1.25rem', fontWeight: 700, margin: 0 }}>Wi-Fi Beamforming — Polar Radiation Pattern</h3>
+        <p style={{ color: T.textSecondary, margin: '4px 0 0', fontSize: '0.875rem' }}>
+          Drag the client markers to aim the beam. Compare omni, focused single-stream, and MU-MIMO dual-lobe radiation patterns.
+        </p>
       </div>
 
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: '1.5rem', marginBottom: '1.5rem' }}>
-        
-        {/* LEFT COLUMN: ACTIVE INTERACTIVE RF MATRIX MAP */}
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-          <div 
-            onMouseMove={handleContainerMouseMove}
-            onMouseUp={() => setIsDragging(false)}
-            onMouseLeave={() => setIsDragging(false)}
-            style={{
-              height: '240px',
-              backgroundColor: styles.chartBg,
-              border: '1px solid #1e293b',
-              borderRadius: '12px',
-              position: 'relative',
-              overflow: 'hidden',
-              userSelect: 'none'
-            }}
-          >
-            {/* BACKGROUND CALIBRATION VECTOR COMPASS RINGS */}
-            <div style={{ position: 'absolute', left: `${apPos.x}px`, top: `${apPos.y}px`, width: '100px', height: '100px', border: '1px dashed rgba(255,255,255,0.02)', borderRadius: '50%', transform: 'translate(-50%, -50%)' }} />
-            <div style={{ position: 'absolute', left: `${apPos.x}px`, top: `${apPos.y}px`, width: '250px', height: '250px', border: '1px dashed rgba(255,255,255,0.02)', borderRadius: '50%', transform: 'translate(-50%, -50%)' }} />
+      {/* Mode tabs */}
+      <div style={{ display: 'flex', gap: '4px', marginBottom: '1.5rem', backgroundColor: T.panelBg, padding: '3px', borderRadius: '8px', border: T.border }}>
+        {(['omni', 'beam', 'mu-mimo'] as Mode[]).map(m => (
+          <button key={m} type="button" onClick={() => setMode(m)}
+            style={{ flex: 1, padding: '7px 8px', fontWeight: 700, fontSize: '0.78rem', border: 'none', borderRadius: '6px', cursor: 'pointer', backgroundColor: mode === m ? T.accent : 'transparent', color: mode === m ? '#fff' : T.textSecondary, transition: 'all 0.12s' }}>
+            {m === 'omni' ? 'Omni' : m === 'beam' ? 'Beamforming (SU)' : 'MU-MIMO'}
+          </button>
+        ))}
+      </div>
 
-            {/* DYNAMIC RADIO WAVEFRONT WAVE SHAPES SVG LAYER */}
-            <svg style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', pointerEvents: 'none' }}>
-              {mode === 'omni' ? (
-                <>
-                  <circle cx={apPos.x} cy={apPos.y} r={(30 + (wavePhase * 12)) % 110} fill="none" stroke={styles.accent} strokeWidth="1" strokeOpacity={1 - ((30 + (wavePhase * 12)) % 110) / 110} />
-                  <circle cx={apPos.x} cy={apPos.y} r={(60 + (wavePhase * 12)) % 110} fill="none" stroke={styles.accent} strokeWidth="1" strokeOpacity={1 - ((60 + (wavePhase * 12)) % 110) / 110} />
-                  <circle cx={apPos.x} cy={apPos.y} r={(90 + (wavePhase * 12)) % 110} fill="none" stroke={styles.accent} strokeWidth="1" strokeOpacity={1 - ((90 + (wavePhase * 12)) % 110) / 110} />
-                </>
-              ) : (
-                <g transform={`translate(${apPos.x}, ${apPos.y}) rotate(${rotationDeg})`}>
-                  <path 
-                    d={`M 0,-15 Q ${distance * 0.4},-40 ${distance},0 Q ${distance * 0.4},40 0,15 Z`}
-                    fill={mode === 'explicit' ? 'url(#explicitGlow)' : 'url(#implicitGlow)'}
-                    stroke={mode === 'explicit' ? styles.fwd : styles.lst}
-                    strokeWidth="1.5"
-                    strokeDasharray={mode === 'implicit' ? '4 2' : 'none'}
-                    style={{ opacity: 0.85 }}
-                  />
-                  <circle cx={(wavePhase * (distance / (Math.PI * 2))) % distance} cy="0" r="4" fill="#ffffff" filter="blur(1px)" />
+      <div style={{ display: 'flex', gap: '1.5rem', flexWrap: 'wrap' }}>
+
+        {/* Polar diagram */}
+        <div style={{ flex: '1 1 340px' }}>
+          <div
+            ref={svgContainerRef}
+            onPointerMove={handlePointerMove}
+            onPointerUp={handlePointerUp}
+            style={{ aspectRatio: '1', width: '100%', maxWidth: 420, backgroundColor: T.insetBg, borderRadius: '12px', border: T.border, userSelect: 'none', cursor: dragging ? 'grabbing' : 'default' }}
+          >
+            <svg viewBox="0 0 400 400" width="100%" height="100%">
+
+              {/* Polar grid rings */}
+              {[0.25, 0.5, 0.75, 1].map((frac, i) => (
+                <g key={frac}>
+                  <circle cx={CX} cy={CY} r={MAX_R * frac} fill="none" stroke={T.borderSubtle} strokeWidth="1" />
+                  <text x={CX + MAX_R * frac + 3} y={CY - 3} fontSize="8" fill={T.textMuted} fontFamily="monospace">
+                    {['-60', '-50', '-40', '-30'][i]} dBm
+                  </text>
                 </g>
+              ))}
+
+              {/* Angle lines every 30° */}
+              {Array.from({ length: 12 }, (_, i) => i * 30).map(deg => {
+                const p = pointOnRing(deg, MAX_R);
+                return (
+                  <g key={deg}>
+                    <line x1={CX} y1={CY} x2={p.x} y2={p.y} stroke={T.borderSubtle} strokeWidth="1" />
+                    <text
+                      x={pointOnRing(deg, MAX_R + 14).x}
+                      y={pointOnRing(deg, MAX_R + 14).y}
+                      textAnchor="middle" dominantBaseline="central"
+                      fontSize="8" fill={T.textMuted} fontFamily="monospace"
+                    >{deg}°</text>
+                  </g>
+                );
+              })}
+
+              {/* Radiation pattern */}
+              <path
+                d={patternPath}
+                fill={color1}
+                fillOpacity="0.18"
+                stroke={color1}
+                strokeWidth="2"
+                strokeOpacity="0.9"
+              />
+
+              {/* Second lobe highlight for MU-MIMO */}
+              {mode === 'mu-mimo' && (
+                <path
+                  d={buildPath('beam', angle2, angle2)}
+                  fill={color2}
+                  fillOpacity="0.12"
+                  stroke={color2}
+                  strokeWidth="1.5"
+                  strokeOpacity="0.7"
+                  strokeDasharray="5 3"
+                />
+              )}
+
+              {/* AP at center */}
+              <circle cx={CX} cy={CY} r="12" fill={T.panelBg} stroke={T.accent} strokeWidth="2" />
+              <text x={CX} y={CY} textAnchor="middle" dominantBaseline="central" fontSize="11" fill={T.accent}>&#9201;</text>
+
+              {/* Beam direction lines */}
+              {mode !== 'omni' && (
+                <line
+                  x1={CX} y1={CY}
+                  x2={client1.x} y2={client1.y}
+                  stroke={color1} strokeWidth="1" strokeDasharray="4 3" opacity="0.5"
+                />
+              )}
+              {mode === 'mu-mimo' && (
+                <line
+                  x1={CX} y1={CY}
+                  x2={client2.x} y2={client2.y}
+                  stroke={color2} strokeWidth="1" strokeDasharray="4 3" opacity="0.5"
+                />
+              )}
+
+              {/* Client 1 */}
+              <circle
+                cx={client1.x} cy={client1.y} r="11"
+                fill={color1} fillOpacity="0.2" stroke={color1} strokeWidth="2"
+                onPointerDown={handlePointerDown(1)}
+                style={{ cursor: 'grab' }}
+              />
+              <text x={client1.x} y={client1.y} textAnchor="middle" dominantBaseline="central" fontSize="9" fill={color1} fontFamily="monospace" style={{ pointerEvents: 'none' }}>C1</text>
+
+              {/* Signal dot at pattern edge */}
+              {mode !== 'omni' && (
+                <circle cx={c1Pos.x} cy={c1Pos.y} r="4" fill={color1} opacity="0.7" style={{ pointerEvents: 'none' }} />
+              )}
+
+              {/* Client 2 (MU-MIMO only) */}
+              {mode === 'mu-mimo' && (
+                <>
+                  <circle
+                    cx={client2.x} cy={client2.y} r="11"
+                    fill={color2} fillOpacity="0.2" stroke={color2} strokeWidth="2"
+                    onPointerDown={handlePointerDown(2)}
+                    style={{ cursor: 'grab' }}
+                  />
+                  <text x={client2.x} y={client2.y} textAnchor="middle" dominantBaseline="central" fontSize="9" fill={color2} fontFamily="monospace" style={{ pointerEvents: 'none' }}>C2</text>
+                  <circle cx={c2Pos.x} cy={c2Pos.y} r="4" fill={color2} opacity="0.7" style={{ pointerEvents: 'none' }} />
+                </>
               )}
             </svg>
-
-            {/* STATIC ACCESS POINT ANTENNA TOWER ARRAY ELEMENTS */}
-            <div style={{ position: 'absolute', left: `${apPos.x}px`, top: `${apPos.y}px`, transform: 'translate(-50%, -50%)', display: 'flex', flexDirection: 'column', gap: '5px', alignItems: 'center', zIndex: 10 }}>
-              <div style={{ width: '10px', height: '10px', borderRadius: '50%', backgroundColor: styles.accent, boxShadow: `0 0 8px ${styles.accent}` }} title="Antenna Element A" />
-              <div style={{ width: '10px', height: '10px', borderRadius: '50%', backgroundColor: styles.accent, boxShadow: `0 0 8px ${styles.accent}` }} title="Antenna Element B" />
-              <div style={{ width: '10px', height: '10px', borderRadius: '50%', backgroundColor: styles.accent, boxShadow: `0 0 8px ${styles.accent}` }} title="Antenna Element C" />
-              <span style={{ fontSize: '0.55rem', fontWeight: 'bold', color: styles.accent, fontFamily: 'monospace', marginTop: '3px', backgroundColor: '#05070f', padding: '1px 4px', borderRadius: '3px' }}>3x3 MIMO</span>
-            </div>
-
-            {/* DRAGGABLE USER CLIENT HARDWARE DEVICE PROBE ELEMENT */}
-            <div
-              onMouseDown={() => setIsDragging(true)}
-              style={{
-                position: 'absolute', left: `${clientPos.x}px`, top: `${clientPos.y}px`, transform: 'translate(-50%, -50%)',
-                padding: '6px 10px', backgroundColor: '#ffffff', color: '#0f172a', borderRadius: '6px',
-                fontSize: '0.65rem', fontWeight: 'bold', boxShadow: '0 4px 12px rgba(0,0,0,0.5)',
-                border: `2px solid ${mode === 'omni' ? styles.accent : (mode === 'implicit' ? styles.lst : styles.fwd)}`,
-                cursor: 'grab', zIndex: 20, transition: 'border 0.2s ease, left 0.05s linear'
-              }}
-            >
-              📱 Client ({mode.toUpperCase()})
-            </div>
-
-            {/* GRADIENT MAP DEFINITIONS */}
-            <svg style={{ position: 'absolute', width: 0, height: 0 }}>
-              <defs>
-                <linearGradient id="explicitGlow" x1="0%" y1="0%" x2="100%" y2="0%">
-                  <stop offset="0%" stopColor={styles.fwd} stopOpacity="0.4" />
-                  <stop offset="70%" stopColor={styles.fwd} stopOpacity="0.15" />
-                  <stop offset="100%" stopColor={styles.fwd} stopOpacity="0" />
-                </linearGradient>
-                <linearGradient id="implicitGlow" x1="0%" y1="0%" x2="100%" y2="0%">
-                  <stop offset="0%" stopColor={styles.lst} stopOpacity="0.3" />
-                  <stop offset="70%" stopColor={styles.lst} stopOpacity="0.1" />
-                  <stop offset="100%" stopColor={styles.lst} stopOpacity="0" />
-                </linearGradient>
-              </defs>
-            </svg>
           </div>
-
-          {/* TELEMETRY ANALYTICS METER PANEL */}
-          <div style={{ backgroundColor: styles.setupBg, padding: '1rem', borderRadius: '10px', border: styles.panelBorder, display: 'grid', gridTemplateColumns: '1fr 100px', alignItems: 'center', gap: '10px' }}>
-            <div>
-              <span style={{ fontSize: '0.6rem', color: styles.descText, fontWeight: 'bold', textTransform: 'uppercase', display: 'block' }}>Signal Attenuation Level</span>
-              <div style={{ fontSize: '1.6rem', fontWeight: 900, fontFamily: 'monospace', color: effectiveSignal >= -62 ? styles.fwd : (effectiveSignal >= -72 ? styles.lst : styles.blk) }}>
-                {effectiveSignal} <span style={{ fontSize: '0.9rem' }}>dBm</span>
-              </div>
-            </div>
-            <div style={{ fontSize: '0.65rem', color: styles.textPrimary, backgroundColor: styles.chartBg, padding: '6px', borderRadius: '4px', textAlign: 'center', border: '1px solid rgba(255,255,255,0.02)', fontWeight: 'bold' }}>
-              {effectiveSignal >= -58 ? '🟢 EXCELLENT' : (effectiveSignal >= -70 ? '🟡 MARGINAL' : '🔴 DEGRADED')}
-            </div>
-          </div>
+          <div style={{ fontSize: '0.65rem', color: T.textMuted, textAlign: 'center', marginTop: 6 }}>Drag client markers to steer the beam</div>
         </div>
 
-        {/* RIGHT COLUMN: LIVE SINE-WAVE PLOT */}
-        <div style={{ flex: '1 1 280px', display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-          <div style={{ flexGrow: 1, backgroundColor: '#05070f', border: '1px solid #1e293b', borderRadius: '12px', padding: '1rem', display: 'flex', flexDirection: 'column', justifyContent: 'space-between', minHeight: '220px' }}>
-            <span style={{ fontSize: '0.6rem', color: styles.accent, fontWeight: 'bold', fontFamily: 'monospace' }}>CLIENT-SIDE ANTENNA PHASE SUMMATION LAYER</span>
-            
-            {/* WAVE PLOT CANVAS AREA */}
-            <div style={{ position: 'relative', height: '110px', borderBottom: '1px dashed #27354a', borderTop: '1px dashed #27354a', margin: '15px 0', overflow: 'hidden' }}>
-              <svg style={{ width: '100%', height: '100%' }}>
-                <path
-                  d={Array.from({ length: 100 }, (_, i) => {
-                    const x = (i / 99) * 280;
-                    const amp = mode === 'explicit' ? 38 : (mode === 'implicit' ? 24 : 12);
-                    const freq = 0.15;
-                    const y = 55 + Math.sin(i * freq - wavePhase * 2) * amp;
-                    return `${i === 0 ? 'M' : 'L'} ${x} ${y}`;
-                  }).join(' ')}
-                  fill="none"
-                  stroke={mode === 'omni' ? styles.accent : (mode === 'implicit' ? styles.lst : styles.fwd)}
-                  strokeWidth="2"
-                  style={{ transition: 'stroke 0.2s ease' }}
-                />
-              </svg>
-              <div style={{ position: 'absolute', top: '50%', left: 0, right: 0, borderTop: '1px dotted rgba(255,255,255,0.08)', transform: 'translateY(-50%)' }} />
-            </div>
+        {/* Right panel */}
+        <div style={{ flex: '1 1 240px', display: 'flex', flexDirection: 'column', gap: '1rem' }}>
 
-            <div style={{ fontSize: '0.65rem', color: styles.descText, lineHeight: '1.4' }}>
-              {mode === 'omni' && '❌ No phase adjustment active. Antennas radiate out-of-sync cycles, yielding a standard low-amplitude scattering signature.'}
-              {mode === 'implicit' && '⚠️ Implicit sounding active. Antenna matrix estimates mathematical coordinates from legacy frames, focusing intermediate directional gain loops.'}
-              {mode === 'explicit' && '✅ Explicit Compressed VHT matrix active! Client feeds back exact calibration data, enabling 100% constructive phase-aligned crest combinations.'}
-            </div>
+          {/* Mode info */}
+          <div style={{ padding: '12px 14px', backgroundColor: T.accentSubtle, border: `1px solid ${T.borderColor}`, borderRadius: '8px' }}>
+            <div style={{ fontSize: '0.78rem', fontWeight: 700, color: T.accent, marginBottom: 4 }}>{MODE_INFO[mode].label}</div>
+            <div style={{ fontSize: '0.75rem', color: T.textSecondary, lineHeight: 1.6 }}>{MODE_INFO[mode].desc}</div>
           </div>
 
-          {/* COMPLIANCE TERMINAL STATUS HUD */}
-          <div style={{ backgroundColor: styles.terminalBg, padding: '0.75rem', borderRadius: '8px', border: '1px solid #1e293b', fontFamily: 'monospace', fontSize: '0.7rem', color: styles.terminalText }}>
-            <span style={{ color: '#475569', display: 'block', borderBottom: '1px solid #1e293b', paddingBottom: '3px', marginBottom: '6px', fontWeight: 'bold' }}>MIMO SPATIAL MULTIPLEXING HUB</span>
-            <div>RF Channel Sounding: <span style={{ color: '#fff' }}>{mode === 'omni' ? 'DISABLED' : 'BEAMFORMING_MATRIX_UP'}</span></div>
-            <div>Estimated Multipath Array Gain: <span style={{ color: styles.fwd }}>{mode === 'omni' ? '+0 dB' : (mode === 'implicit' ? '+5.5 dB' : '+9.0 dB')}</span></div>
+          {/* Signal bars */}
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+            {dBmBar('Client 1', dBm1, gain1, color1)}
+            {mode === 'mu-mimo' && dBmBar('Client 2', dBm2, gain2, color2)}
           </div>
-        </div>
 
-      </div>
-
-      {/* CORE CURRICULUM THEORY CONTENT */}
-      <div style={{ borderTop: '2px solid rgba(255,255,255,0.05)', paddingTop: '1.5rem', display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '1.5rem', fontSize: '0.8rem', lineHeight: '1.5' }}>
-        <div>
-          <h4 style={{ margin: '0 0 6px 0', fontSize: '0.95rem', fontWeight: 700, color: styles.accent }}>🌊 Constructive vs. Destructive Wave Physics</h4>
-          <p style={{ margin: 0, color: styles.descText, fontSize: '0.78rem' }}>
-            When multiple radio streams bounce through walls, they hit antennas at staggered intervals. If two crests arrive exactly out-of-phase (180 degree shift), they flatten each other out completely (**destructive interference**). Beamforming alters the launch timing of transmitter signals so that the waves arrive exactly locked together (**constructive interference**), compounding their electrical power heights.
-          </p>
-        </div>
-        <div>
-          <h4 style={{ margin: '0 0 6px 0', fontSize: '0.95rem', fontWeight: 700, color: styles.fwd }}>📡 Implicit vs. Explicit Transmit Beamforming (TxBF)</h4>
-          <p style={{ margin: 0, color: styles.descText, fontSize: '0.78rem' }}>
-            * **Implicit TxBF:** The AP attempts to guess client coordinates by measuring incoming data parameters on its own ports. It is resource-light but vulnerable to path imbalances.
-            * **Explicit TxBF:** Introduced in **802.11ac**, the AP sends a **Null Data Packet (NDP)** probe frame. The client measures the frame distortion directly and returns a comprehensive **Compressed VHT Steering Matrix** report, granting optimal directional precision.
-          </p>
+          {/* Theory cards */}
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+            <div style={{ backgroundColor: T.panelBg, padding: '10px 12px', borderRadius: '8px', border: T.border }}>
+              <h5 style={{ margin: '0 0 4px', fontSize: '0.8rem', fontWeight: 700, color: T.success }}>Beamforming gain</h5>
+              <p style={{ margin: 0, fontSize: '0.72rem', color: T.textSecondary, lineHeight: 1.5 }}>
+                Focusing energy toward one client vs spreading it omnidirectionally yields 3–6 dB gain — equivalent to doubling or quadrupling transmit power without regulatory limit increases.
+              </p>
+            </div>
+            <div style={{ backgroundColor: T.panelBg, padding: '10px 12px', borderRadius: '8px', border: T.border }}>
+              <h5 style={{ margin: '0 0 4px', fontSize: '0.8rem', fontWeight: 700, color: T.warning }}>Null steering</h5>
+              <p style={{ margin: 0, fontSize: '0.72rem', color: T.textSecondary, lineHeight: 1.5 }}>
+                In MU-MIMO mode, the AP applies a null between the two spatial streams so each client does not hear the other's data. This requires feedback from both clients simultaneously.
+              </p>
+            </div>
+            <div style={{ backgroundColor: T.panelBg, padding: '10px 12px', borderRadius: '8px', border: T.border }}>
+              <h5 style={{ margin: '0 0 4px', fontSize: '0.8rem', fontWeight: 700, color: T.danger }}>Implicit vs explicit</h5>
+              <p style={{ margin: 0, fontSize: '0.72rem', color: T.textSecondary, lineHeight: 1.5 }}>
+                Implicit TxBF: the AP estimates channel state from sounding frames — no client support needed, lower accuracy. Explicit TxBF: the client sends a steering matrix back, enabling precise phase control per antenna element.
+              </p>
+            </div>
+          </div>
         </div>
       </div>
-
     </div>
   );
 };

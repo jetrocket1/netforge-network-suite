@@ -1,191 +1,123 @@
 import React, { useState } from 'react';
+import { getLabTheme } from './labTheme';
 
-interface WirelessToWiredLabProps {
-  isDarkMode?: boolean;
-}
+interface WirelessToWiredLabProps { isDarkMode?: boolean; }
 
-interface InfraNode {
+interface Node {
   id: string;
   label: string;
-  icon: string;
-  layer: 'RF Layer' | 'Physical Layer Boundary' | 'Distribution Backbone';
-  mediaType: string;
+  shortLabel: string;
+  layer: string;
+  media: string;
   details: string;
-  capsuleState: string;
+  encap: string;
 }
 
 export const WirelessToWiredLab: React.FC<WirelessToWiredLabProps> = ({ isDarkMode = true }) => {
-  const [selectedNodeId, setSelectedNodeId] = useState<string>('client');
+  const [selectedId, setSelectedId] = useState('client');
+  const T = getLabTheme(isDarkMode);
 
-  const infrastructureNodes: InfraNode[] = [
+  const nodes: Node[] = [
     {
-      id: 'client',
-      label: 'Wireless Endpoint (STA)',
-      icon: '📱',
-      layer: 'RF Layer',
-      mediaType: 'Radio Waves (2.4GHz / 5GHz / 6GHz)',
-      details: 'The client station translates binary data frames into phase-shifted electromagnetic radio frequencies traversing the air medium.',
-      capsuleState: '802.11 Wireless MAC Frame Data'
+      id: 'client', label: 'Wireless Client', shortLabel: 'Client',
+      layer: 'RF (Layer 1–2)', media: 'Radio waves — 2.4 GHz / 5 GHz / 6 GHz',
+      details: 'The laptop or phone converts digital data into phase-shifted radio waves and broadcasts them into the air. The frame format used over Wi-Fi is IEEE 802.11, not the Ethernet 802.3 used on wires.',
+      encap: '802.11 Wi-Fi frame',
     },
     {
-      id: 'ap',
-      label: 'Enterprise Access Point',
-      icon: '🛰️',
-      layer: 'Physical Layer Boundary',
-      mediaType: 'Solid-Core Horizontal Copper Cabling',
-      details: 'Terminates the 802.11 radio medium, un-encapsulates the wireless header wrapper, and converts the raw payload onto an 802.3 Ethernet structured run passing through structural ceiling/wall conduits.',
-      capsuleState: 'Media Translation: 802.11 Frame ➔ 802.3 Ethernet Packet'
+      id: 'ap', label: 'Access Point', shortLabel: 'AP',
+      layer: 'Layer 2 bridge', media: 'Copper Cat6 — horizontal run to patch panel',
+      details: 'The access point is the critical media boundary. It receives the 802.11 wireless frame, strips the Wi-Fi header, and rebuilds the payload as an 802.3 Ethernet frame before forwarding it down the copper cable toward the switch.',
+      encap: '802.11 → 802.3 (media conversion)',
     },
     {
-      id: 'patch',
-      label: 'Server Cabinet Patch Panel',
-      icon: '🔌',
-      layer: 'Physical Layer Boundary',
-      mediaType: 'Passive 110 Punch-Down Block Connection',
-      details: 'Acts as a strict mechanical termination frame protecting the permanent structural wall cables from stress. It passes raw electrical signals without executing any software switching logic.',
-      capsuleState: 'Pure Layer 1 Physical Bit Stream Propagation'
+      id: 'patch', label: 'Patch Panel', shortLabel: 'Patch',
+      layer: 'Layer 1 only', media: 'Passive 110-block punch-down termination',
+      details: 'The patch panel is a purely passive physical device — it has no processing logic. Horizontal cabling from the wall terminates here, and flexible patch leads connect it to the switch ports. It protects permanent cable from repeated plugging and unplugging.',
+      encap: 'Layer 1 bit stream — no frame processing',
     },
     {
-      id: 'switch',
-      label: 'Layer 2 PoE+ Access Switch',
-      icon: '🎛️',
-      layer: 'Physical Layer Boundary',
-      mediaType: 'Stranded Cat6 Patch Lead (RJ45 Connectivity)',
-      details: 'Connected via a flexible patch lead from the front of the patch panel. This device injects standard 802.3at power down the lines to energize the AP while reading destination MAC addresses to switch localized VLAN domain frames.',
-      capsuleState: '802.3 Ethernet Frame (VLAN Dot1Q Tagged)'
+      id: 'switch', label: 'PoE+ Access Switch', shortLabel: 'Switch',
+      layer: 'Layer 2 switch', media: 'Stranded Cat6 patch leads — RJ45 to switch ports',
+      details: 'The switch reads destination MAC addresses to forward frames only to the correct port. It also delivers PoE (Power over Ethernet) to the access point, eliminating the need for a separate power cable to the AP.',
+      encap: '802.3 Ethernet frame (optionally 802.1Q VLAN tagged)',
     },
     {
-      id: 'core',
-      label: 'Main Distribution Frame (MDF) Core Switch',
-      icon: '📟',
-      layer: 'Distribution Backbone',
-      mediaType: 'OM4 Multimode Fiber Optic LC Link Uplink',
-      details: 'The ultimate data concentration aggregator core. Interconnects corporate server blocks and manages inter-VLAN routing tables using high-bandwidth optical laser waves.',
-      capsuleState: 'Routed IP Packet Encap / SFP+ Optical Modulation'
-    }
+      id: 'core', label: 'Core Switch (MDF)', shortLabel: 'Core',
+      layer: 'Layer 3 routing', media: 'OM4 multimode fibre — LC duplex uplink',
+      details: 'The core or distribution switch aggregates multiple access switches over high-speed fibre uplinks. It handles inter-VLAN routing, connecting different network segments and forwarding traffic toward the internet or data centre.',
+      encap: 'Routed IP packet / 802.3 Ethernet over fibre',
+    },
   ];
 
-  const currentNode = infrastructureNodes.find(n => n.id === selectedNodeId) || infrastructureNodes[0];
+  const linkColors = ['#4493f8', '#3b82f6', '#3fb950', '#d29922'];
+  const linkStyles = ['6 4', 'none', 'none', 'none'];
 
-  const styles = {
-    panelBg: isDarkMode ? '#111827' : '#ffffff',
-    panelBorder: isDarkMode ? '1px solid rgba(255, 255, 255, 0.05)' : '1px solid rgba(0, 0, 0, 0.06)',
-    textPrimary: isDarkMode ? '#f8fafc' : '#0f172a',
-    descText: isDarkMode ? '#94a3b8' : '#475569',
-    setupBg: isDarkMode ? '#161f30' : '#f1f5f9',
-    chartBg: isDarkMode ? '#0b0f19' : '#f8fafc',
-    terminalBg: '#05050a',
-    terminalText: '#38bdf8',
-    accent: isDarkMode ? '#06b6d4' : '#0284c7',
-    wireColor: isDarkMode ? '#334155' : '#cbd5e1',
-    fwd: '#10b981',
-    lst: '#eab308'
-  };
+  const selected = nodes.find(n => n.id === selectedId) ?? nodes[0];
 
   return (
-    <div style={{ padding: '2rem', backgroundColor: styles.panelBg, borderRadius: '12px', border: styles.panelBorder, color: styles.textPrimary, fontFamily: 'system-ui, sans-serif', boxSizing: 'border-box' }}>
-      
-      {/* SECTION HEADER PANEL */}
-      <div style={{ marginBottom: '2rem', borderBottom: '1px solid rgba(255,255,255,0.05)', paddingBottom: '1rem' }}>
-        <h3 style={{ fontSize: '1.4rem', fontWeight: 800, margin: 0, letterSpacing: '-0.025em' }}>📟 Wireless-to-Wired Boundary Infrastructure Lab</h3>
-        <p style={{ color: styles.descText, margin: '4px 0 0 0', fontSize: '0.85rem' }}>Click on any node item component across the distribution line path to inspect media handshakes and capsule conversions.</p>
+    <div style={{ padding: '2rem', backgroundColor: T.cardBg, borderRadius: '12px', border: T.border, color: T.textPrimary, fontFamily: 'system-ui, sans-serif' }}>
+
+      {/* Header */}
+      <div style={{ marginBottom: '1.5rem', paddingBottom: '1rem', borderBottom: T.border }}>
+        <h3 style={{ fontSize: '1.25rem', fontWeight: 700, margin: 0 }}>Wireless-to-Wired Infrastructure</h3>
+        <p style={{ color: T.textSecondary, margin: '4px 0 0', fontSize: '0.875rem' }}>
+          Click any device to see what media it uses and what happens to the frame at each boundary.
+        </p>
       </div>
 
-      {/* HORIZONTAL PHYSICAL TOPOLOGY WIRE MAP */}
-      <div style={{ 
-        backgroundColor: styles.chartBg, border: '1px solid #1e293b', borderRadius: '12px', 
-        padding: '3rem 1.5rem', position: 'relative', display: 'flex', 
-        justifyContent: 'space-between', alignItems: 'center', marginBottom: '2rem', overflowX: 'auto' 
-      }}>
-        
-        {/* PHYSICAL TRUNK CONNECTING VECTOR SYSTEM */}
-        <svg style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', pointerEvents: 'none', minWidth: '700px' }}>
-          {/* Wireless Link (Dotted RF Air Medium) */}
-          <line x1="10%" y1="50%" x2="30%" y2="50%" stroke={styles.accent} strokeWidth="3" strokeDasharray="6 4" />
-          {/* Permanent Horizontal Infrastructure Wall Run */}
-          <line x1="30%" y1="50%" x2="50%" y2="50%" stroke="#3b82f6" strokeWidth="3" />
-          {/* Flexible Cabinet Patch Cable Lead */}
-          <line x1="50%" y1="50%" x2="70%" y2="50%" stroke="#10b981" strokeWidth="3" />
-          {/* High-Speed Optical Backbone Link Trunk */}
-          <line x1="70%" y1="50%" x2="90%" y2="50%" stroke="#eab308" strokeWidth="3" />
+      {/* Topology diagram */}
+      <div style={{ backgroundColor: T.insetBg, border: T.border, borderRadius: '12px', padding: '2.5rem 1.5rem', position: 'relative', marginBottom: '1.5rem', overflowX: 'auto' }}>
+        <svg style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', pointerEvents: 'none', minWidth: 700 }} preserveAspectRatio="none">
+          {linkColors.map((c, i) => (
+            <line key={i}
+              x1={`${10 + i * 20}%`} y1="50%" x2={`${30 + i * 20}%`} y2="50%"
+              stroke={c} strokeWidth="2.5" strokeDasharray={linkStyles[i]} />
+          ))}
         </svg>
-
-        {infrastructureNodes.map((node) => {
-          const isSelected = node.id === selectedNodeId;
-          return (
-            <div
-              key={node.id}
-              onClick={() => setSelectedNodeId(node.id)}
-              style={{
-                textAlign: 'center', width: '120px', zIndex: 2, cursor: 'pointer', transition: 'all 0.15s ease'
-              }}
-            >
-              {/* INTERACTIVE DEVICE AVATAR ICON */}
-              <div style={{
-                fontSize: '2rem', width: '60px', height: '60px', margin: '0 auto',
-                backgroundColor: isSelected ? styles.setupBg : (isDarkMode ? '#111827' : '#ffffff'),
-                border: `2px solid ${isSelected ? styles.accent : 'rgba(255,255,255,0.05)'}`,
-                borderRadius: '12px', display: 'flex', alignItems: 'center', justifyContent: 'center',
-                boxShadow: isSelected ? `0 0 16px ${styles.accent}` : '0 4px 6px rgba(0,0,0,0.15)',
-                transform: isSelected ? 'scale(1.1)' : 'scale(1)', transition: 'all 0.2s ease'
-              }}>
-                {node.icon}
+        <div style={{ display: 'flex', justifyContent: 'space-around', alignItems: 'center', position: 'relative', zIndex: 2, minWidth: 700 }}>
+          {nodes.map((n, i) => {
+            const active = n.id === selectedId;
+            const iconMap: Record<string, string> = { client: '&#128241;', ap: '&#128225;', patch: '&#128268;', switch: '&#9728;', core: '&#128421;' };
+            const linkColor = i > 0 ? linkColors[i - 1] : T.accent;
+            return (
+              <div key={n.id} onClick={() => setSelectedId(n.id)} style={{ textAlign: 'center', width: 110, cursor: 'pointer' }}>
+                <div style={{ width: 56, height: 56, margin: '0 auto', fontSize: '1.5rem', display: 'flex', alignItems: 'center', justifyContent: 'center', borderRadius: '12px', backgroundColor: active ? T.panelBg : T.cardBg, border: `2px solid ${active ? linkColor : T.borderColor}`, boxShadow: active ? `0 0 14px ${linkColor}55` : 'none', transform: active ? 'scale(1.1)' : 'scale(1)', transition: 'all 0.15s' }}>
+                  <span dangerouslySetInnerHTML={{ __html: iconMap[n.id] }} />
+                </div>
+                <div style={{ fontSize: '0.72rem', fontWeight: 700, marginTop: 8, color: active ? linkColor : T.textPrimary }}>{n.shortLabel}</div>
+                <div style={{ fontSize: '0.6rem', color: T.textMuted, marginTop: 2 }}>{n.layer.split('(')[0].trim()}</div>
               </div>
-              
-              {/* LABEL AND SUBTEXT */}
-              <div style={{ fontSize: '0.75rem', fontWeight: 'bold', marginTop: '8px', color: isSelected ? styles.accent : styles.textPrimary }}>
-                {node.label.split(' (')[0]}
-              </div>
-              <div style={{ fontSize: '0.55rem', fontWeight: 'bold', color: styles.descText, textTransform: 'uppercase', marginTop: '2px' }}>
-                {node.layer.split(' ')[0]}
-              </div>
-            </div>
-          );
-        })}
+            );
+          })}
+        </div>
       </div>
 
-      {/* LOWER SECTION: SYSTEM INSPECTION HUB DETAILS */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: '1.5rem' }}>
-        
-        {/* COMPONENT SPECS BOX */}
-        <div style={{ backgroundColor: styles.setupBg, padding: '1.5rem', borderRadius: '10px', border: styles.panelBorder }}>
-          <span style={{ fontSize: '0.6rem', color: styles.accent, fontWeight: 'bold', textTransform: 'uppercase', display: 'block' }}>Layer Context Specs</span>
-          <h4 style={{ margin: '4px 0 0 0', fontSize: '1.2rem', fontWeight: 800 }}>{currentNode.label}</h4>
-          <div style={{ fontSize: '0.75rem', margin: '8px 0', borderLeft: `3px solid ${styles.accent}`, paddingLeft: '8px', color: styles.descText, fontWeight: 'bold' }}>
-            Active Layer Topology: {currentNode.layer}
-          </div>
-          <p style={{ fontSize: '0.85rem', margin: '12px 0 0 0', color: styles.textPrimary, lineHeight: '1.5' }}>{currentNode.details}</p>
-        </div>
-
-        {/* CABLE MEDIA AND FRAME HEAD ENCAPSULATION HUB */}
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-          
-          {/* L1 Media Info */}
-          <div style={{ backgroundColor: '#05070f', border: '1px solid #1e293b', borderRadius: '8px', padding: '1rem' }}>
-            <span style={{ fontSize: '0.6rem', color: styles.descText, fontWeight: 'bold', textTransform: 'uppercase', display: 'block' }}>Layer 1 Interface &amp; Physical Media</span>
-            <div style={{ fontSize: '0.8rem', fontWeight: 'bold', color: '#fff', fontFamily: 'monospace', marginTop: '4px' }}>
-              🧱 {currentNode.mediaType}
-            </div>
-          </div>
-
-          {/* L2/L3 Encapsulation Protocol Wrap Display */}
-          <div style={{ backgroundColor: styles.terminalBg, border: '1px solid #1e293b', borderRadius: '8px', padding: '1rem' }}>
-            <span style={{ fontSize: '0.6rem', color: styles.lst, fontWeight: 'bold', textTransform: 'uppercase', display: 'block' }}>Data Encapsulation State Pipeline</span>
-            <div style={{ fontSize: '0.8rem', fontWeight: 'bold', color: styles.terminalText, fontFamily: 'monospace', marginTop: '4px' }}>
-              📦 {currentNode.capsuleState}
-            </div>
-          </div>
-
-        </div>
-
+      {/* Legend */}
+      <div style={{ display: 'flex', gap: '1.5rem', flexWrap: 'wrap', marginBottom: '1.25rem', fontSize: '0.75rem', color: T.textMuted }}>
+        <span><span style={{ color: linkColors[0] }}>--- </span>Radio (802.11)</span>
+        <span><span style={{ color: linkColors[1] }}>— </span>Copper permanent run</span>
+        <span><span style={{ color: linkColors[2] }}>— </span>Patch lead</span>
+        <span><span style={{ color: linkColors[3] }}>— </span>Fibre uplink</span>
       </div>
 
-      {/* PHYSICAL TOPOLOGY LEGEND TRACE MAP */}
-      <div style={{ marginTop: '1.5rem', borderTop: '1px solid rgba(255,255,255,0.05)', paddingTop: '1.5rem', fontSize: '0.75rem', color: styles.descText, display: 'flex', gap: '1.5rem', flexWrap: 'wrap' }}>
-        <div><span style={{ color: styles.accent }}>•••</span> Radio RF Boundary</div>
-        <div><span style={{ color: '#3b82f6' }}>───</span> Permanent Solid-Core Structural Wall Run</div>
-        <div><span style={{ color: '#10b981' }}>───</span> Flexible Cabinets Stranded Patch Lead</div>
-        <div><span style={{ color: '#eab308' }}>───</span> High-Bandwidth Core Optical Fiber Uplink</div>
+      {/* Detail panels */}
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '1rem' }}>
+        <div style={{ backgroundColor: T.panelBg, padding: '1.25rem', borderRadius: '12px', border: T.border }}>
+          <span style={{ fontSize: '0.7rem', fontWeight: 700, color: T.accent, textTransform: 'uppercase', letterSpacing: '0.05em' }}>{selected.layer}</span>
+          <h4 style={{ margin: '6px 0 10px', fontSize: '1rem', fontWeight: 700 }}>{selected.label}</h4>
+          <p style={{ margin: 0, color: T.textSecondary, fontSize: '0.85rem', lineHeight: '1.6' }}>{selected.details}</p>
+        </div>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+          <div style={{ backgroundColor: T.insetBg, padding: '1rem', borderRadius: '8px', border: T.border }}>
+            <span style={{ fontSize: '0.7rem', fontWeight: 700, color: T.textMuted, textTransform: 'uppercase', display: 'block', marginBottom: 6 }}>Physical media</span>
+            <div style={{ fontSize: '0.85rem', fontWeight: 600, color: T.textPrimary }}>{selected.media}</div>
+          </div>
+          <div style={{ backgroundColor: T.termBg, padding: '1rem', borderRadius: '8px', border: `1px solid ${T.termBorder}` }}>
+            <span style={{ fontSize: '0.7rem', fontWeight: 700, color: T.termMuted, textTransform: 'uppercase', display: 'block', marginBottom: 6 }}>Frame / encapsulation</span>
+            <div style={{ fontSize: '0.85rem', fontWeight: 600, color: T.termText, fontFamily: 'monospace' }}>{selected.encap}</div>
+          </div>
+        </div>
       </div>
 
     </div>
