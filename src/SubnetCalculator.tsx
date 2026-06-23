@@ -1,5 +1,6 @@
 ﻿import React, { useState } from 'react';
-import { getLabTheme, LabTheme } from './labTheme';
+import { getLabTheme } from './labTheme';
+import type { LabTheme } from './labTheme';
 import { useSubnet } from './useSubnet';
 import { isIpInSubnet } from './subnetUtils';
 
