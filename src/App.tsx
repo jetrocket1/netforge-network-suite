@@ -1,63 +1,54 @@
-import { useState, useEffect, Component } from 'react';
+import { useState, useEffect, Component, lazy, Suspense } from 'react';
+
+// Lazy-loads a lab module that may use a default or named export.
+// Each import() call becomes its own bundle chunk — only downloaded on first visit.
+const lazyLab = (loader: () => Promise<Record<string, unknown>>, name: string) =>
+  lazy(() => loader().then(m => ({ default: (m.default ?? m[name] ?? Object.values(m)[0]) as React.ComponentType<{ isDarkMode: boolean }> })));
 
 // ==========================================
-// 1. COMPLIANT ES MODULE STATIC REGISTRY
+// 1. LAZY-LOADED LAB REGISTRY
 // ==========================================
-import * as OsiModule from './OsiModel';
-import * as HeaderModule from './HeaderInspector';
-import * as ProtocolModule from './ProtocolMapper';
-import * as TopologyModule from './TopologyLab';
-import * as CsmaModule from './CsmaLab'; 
-import * as CableModule from './CableLab';
-import * as IcmpModule from './IcmpLab';
-import * as ArpModule from './ArpLab'; 
-import * as NetServicesModule from './NetServicesLab'; 
-import * as SubnetCalcModule from './SubnetCalculator';
-import * as SubnetSplitModule from './SubnetSplitter';
-import * as SubnetCheatModule from './SubnetCheatSheet';
-import * as Ipv6Module from './Ipv6Suite';
-import * as VlanModule from './VlanSuite';
-import * as LinkAggModule from './LinkAggregationLab';
-import * as StpModule from './StpLab'; 
-import * as WifiAnalModule from './WifiAnalyzer';
-import * as WifiRoamModule from './WifiRoamingLab';
-import * as WifiBeamModule from './WifiBeamforming';
-import * as WifiSecModule from './WifiSecurity';
-import * as WifiStandModule from './WifiStandards';
-import * as PracticeModule from './PracticeStation';
-
-// Import Security Suite Elements Statically
-import * as Layer2SecurityModule from './Layer2SecurityLab';
-import * as AclModule from './AclLab';
-
-// Import Routing Modules Statically
-import * as LpmModule from './LpmSimulator';
-import * as GatewayModule from './GatewayLab';
-import * as DynamicRoutingModule from './DynamicRoutingLab';
-
-// Import PowerShell Diagnostics Matrix Module Statically
-import * as PowerShellModule from './PowerShellCheatsheet';
-
-// Added: Static Import for the Wireless-to-Wired Infrastructure Lab
-import * as WirelessToWiredModule from './WirelessToWiredLab';
-
-// Unpack function that dynamically handles named vs default exports safely
-const unpack = (mod: any, fallbackName: string) => {
-  if (!mod) return null;
-  return mod.default || mod[fallbackName] || Object.values(mod)[0];
-};
+const OsiModelLazy          = lazyLab(() => import('./OsiModel'),             'OsiModel');
+const HeaderInspectorLazy   = lazyLab(() => import('./HeaderInspector'),      'HeaderInspector');
+const ProtocolMapperLazy    = lazyLab(() => import('./ProtocolMapper'),       'ProtocolMapper');
+const TopologyLabLazy       = lazyLab(() => import('./TopologyLab'),          'TopologyLab');
+const CsmaLabLazy           = lazyLab(() => import('./CsmaLab'),              'CsmaLab');
+const CableLabLazy          = lazyLab(() => import('./CableLab'),             'CableLab');
+const IcmpLabLazy           = lazyLab(() => import('./IcmpLab'),              'IcmpLab');
+const ArpLabLazy            = lazyLab(() => import('./ArpLab'),               'ArpLab');
+const NetServicesLabLazy    = lazyLab(() => import('./NetServicesLab'),       'NetServicesLab');
+const WirelessToWiredLazy   = lazyLab(() => import('./WirelessToWiredLab'),   'WirelessToWiredLab');
+const SubnetCalculatorLazy  = lazyLab(() => import('./SubnetCalculator'),     'SubnetCalculator');
+const SubnetSplitterLazy    = lazyLab(() => import('./SubnetSplitter'),       'SubnetSplitter');
+const Ipv6SuiteLazy         = lazyLab(() => import('./Ipv6Suite'),            'Ipv6Suite');
+const SubnetCheatSheetLazy  = lazyLab(() => import('./SubnetCheatSheet'),     'SubnetCheatSheet');
+const VlanSuiteLazy         = lazyLab(() => import('./VlanSuite'),            'VlanSuite');
+const LinkAggLabLazy        = lazyLab(() => import('./LinkAggregationLab'),   'LinkAggregationLab');
+const StpLabLazy            = lazyLab(() => import('./StpLab'),               'StpLab');
+const WifiAnalyzerLazy      = lazyLab(() => import('./WifiAnalyzer'),         'WifiAnalyzer');
+const WifiRoamingLazy       = lazyLab(() => import('./WifiRoamingLab'),       'WifiRoamingLab');
+const WifiBeamformingLazy   = lazyLab(() => import('./WifiBeamforming'),      'WifiBeamforming');
+const WifiSecurityLazy      = lazyLab(() => import('./WifiSecurity'),         'WifiSecurity');
+const WifiStandardsLazy     = lazyLab(() => import('./WifiStandards'),        'WifiStandards');
+const Layer2SecurityLazy    = lazyLab(() => import('./Layer2SecurityLab'),    'Layer2SecurityLab');
+const AclLabLazy            = lazyLab(() => import('./AclLab'),               'AclLab');
+const LpmSimulatorLazy      = lazyLab(() => import('./LpmSimulator'),         'LpmSimulator');
+const GatewayLabLazy        = lazyLab(() => import('./GatewayLab'),           'GatewayLab');
+const DynamicRoutingLazy    = lazyLab(() => import('./DynamicRoutingLab'),    'DynamicRoutingLab');
+const PowerShellLazy        = lazyLab(() => import('./PowerShellCheatsheet'), 'PowerShellCheatsheet');
+const PracticeStationLazy   = lazyLab(() => import('./PracticeStation'),      'PracticeStation');
 
 // ==========================================
 // 2. DEFENSIVE FAIL-SAFE WRAPPER ENGINE
 // ==========================================
-class SafeComponentBridge extends Component<{ target: any; name: string; isDarkMode: boolean }, { hasError: boolean }> {
+class SafeComponentBridge extends Component<{ target: React.ComponentType<{ isDarkMode: boolean }>; name: string; isDarkMode: boolean }, { hasError: boolean }> {
   state = { hasError: false };
   static getDerivedStateFromError() { return { hasError: true }; }
-  componentDidCatch(error: any, errorInfo: any) {
+  componentDidCatch(error: unknown, errorInfo: unknown) {
     console.error(`Fault detected inside laboratory module [${this.props.name}]:`, error, errorInfo);
   }
   render() {
-    if (this.state.hasError || !this.props.target) {
+    if (this.state.hasError) {
       return (
         <div style={{ padding: '2.5rem', backgroundColor: '#1e1b4b', borderRadius: '12px', border: '1px dashed #6366f1', color: '#f8fafc' }}>
           <h4 style={{ margin: '0 0 6px 0', color: '#f43f5e' }}>🛑 Lab Integration Fault Detect Loop</h4>
@@ -80,77 +71,77 @@ const WORKSPACE_REGISTRY = [
     catId: 'fundamentals',
     catLabel: '📚 Fundamentals',
     tools: [
-      { id: 'osiModel', label: '🔍 The 7-Layer Model', component: unpack(OsiModule, 'OsiModel'), name: 'OsiModel' },
-      { id: 'topologyLab', label: '🕸️ Network Topologies', component: unpack(TopologyModule, 'TopologyLab'), name: 'TopologyLab' },
-      { id: 'csmaLab', label: '🚦 Access Control (CSMA)', component: unpack(CsmaModule, 'CsmaLab'), name: 'CsmaLab' },
-      { id: 'cableLab', label: '🔌 Cables & Hardware', component: unpack(CableModule, 'CableLab'), name: 'CableLab' },
-      { id: 'arpLab', label: '📡 Address Resolution (ARP)', component: unpack(ArpModule, 'ArpLab'), name: 'ArpLab' },
-      { id: 'netServices', label: '⚙️ Network Services (DHCP/DNS)', component: unpack(NetServicesModule, 'NetServicesLab'), name: 'NetServicesLab' },
-      { id: 'headerInspector', label: '🔄 Packets vs. Frames', component: unpack(HeaderModule, 'HeaderInspector'), name: 'HeaderInspector' },
-      { id: 'protocolMapper', label: '🔄 Protocol Data Units', component: unpack(ProtocolModule, 'ProtocolMapper'), name: 'ProtocolMapper' },
-      { id: 'icmpLab', label: '🛰️ How Ping Works', component: unpack(IcmpModule, 'IcmpLab'), name: 'IcmpLab' },
-      { id: 'wirelessToWired', label: '🔌 Wireless-to-Wired Path', component: unpack(WirelessToWiredModule, 'WirelessToWiredLab'), name: 'WirelessToWiredLab' },
+      { id: 'osiModel',        label: '🔍 The 7-Layer Model',            component: OsiModelLazy,        name: 'OsiModel' },
+      { id: 'topologyLab',     label: '🕸️ Network Topologies',           component: TopologyLabLazy,     name: 'TopologyLab' },
+      { id: 'csmaLab',         label: '🚦 Access Control (CSMA)',         component: CsmaLabLazy,         name: 'CsmaLab' },
+      { id: 'cableLab',        label: '🔌 Cables & Hardware',             component: CableLabLazy,        name: 'CableLab' },
+      { id: 'arpLab',          label: '📡 Address Resolution (ARP)',      component: ArpLabLazy,          name: 'ArpLab' },
+      { id: 'netServices',     label: '⚙️ Network Services (DHCP/DNS)',   component: NetServicesLabLazy,  name: 'NetServicesLab' },
+      { id: 'headerInspector', label: '🔄 Packets vs. Frames',           component: HeaderInspectorLazy, name: 'HeaderInspector' },
+      { id: 'protocolMapper',  label: '🔄 Protocol Data Units',          component: ProtocolMapperLazy,  name: 'ProtocolMapper' },
+      { id: 'icmpLab',         label: '🛰️ How Ping Works',               component: IcmpLabLazy,         name: 'IcmpLab' },
+      { id: 'wirelessToWired', label: '🔌 Wireless-to-Wired Path',       component: WirelessToWiredLazy, name: 'WirelessToWiredLab' },
     ]
   },
   {
     catId: 'switching',
     catLabel: '🔌 Switching',
     tools: [
-      { id: 'vlanMap', label: '⚙️ VLAN Console & Ports', component: unpack(VlanModule, 'VlanSuite'), name: 'VlanSuite' },
-      { id: 'linkAggregation', label: '⛓️ Combining Switch Links', component: unpack(LinkAggModule, 'LinkAggregationLab'), name: 'LinkAggregationLab' },
-      { id: 'stpLab', label: '🌲 Spanning Tree Protocol (STP)', component: unpack(StpModule, 'StpLab'), name: 'StpLab' },
+      { id: 'vlanMap',         label: '⚙️ VLAN Console & Ports',         component: VlanSuiteLazy,    name: 'VlanSuite' },
+      { id: 'linkAggregation', label: '⛓️ Combining Switch Links',        component: LinkAggLabLazy,   name: 'LinkAggregationLab' },
+      { id: 'stpLab',          label: '🌲 Spanning Tree Protocol (STP)', component: StpLabLazy,       name: 'StpLab' },
     ]
   },
   {
     catId: 'subnetting',
     catLabel: '⚡ Subnetting',
     tools: [
-      { id: 'calculator', label: '🌐 IP Subnet Calculator', component: unpack(SubnetCalcModule, 'SubnetCalculator'), name: 'SubnetCalculator' },
-      { id: 'splitter', label: '✂️ Variable Length Masks (VLSM)', component: unpack(SubnetSplitModule, 'SubnetSplitter'), name: 'SubnetSplitter' },
-      { id: 'ipv6Suite', label: '🌐 IPv6 Address Basics', component: unpack(Ipv6Module, 'Ipv6Suite'), name: 'Ipv6Suite' },
-      { id: 'cheatsheet', label: '📋 Subnetting Quick Sheet', component: unpack(SubnetCheatModule, 'SubnetCheatSheet'), name: 'SubnetCheatSheet' },
+      { id: 'calculator', label: '🌐 IP Subnet Calculator',         component: SubnetCalculatorLazy, name: 'SubnetCalculator' },
+      { id: 'splitter',   label: '✂️ Variable Length Masks (VLSM)', component: SubnetSplitterLazy,  name: 'SubnetSplitter' },
+      { id: 'ipv6Suite',  label: '🌐 IPv6 Address Basics',          component: Ipv6SuiteLazy,       name: 'Ipv6Suite' },
+      { id: 'cheatsheet', label: '📋 Subnetting Quick Sheet',       component: SubnetCheatSheetLazy, name: 'SubnetCheatSheet' },
     ]
   },
   {
     catId: 'routing',
     catLabel: '🚦 Routing',
     tools: [
-      { id: 'lpmSim', label: '🎯 How Routers Choose Paths', component: unpack(LpmModule, 'LpmSimulator'), name: 'LpmSimulator' },
-      { id: 'gatewayLab', label: '🎛️ Smart Backup Routes', component: unpack(GatewayModule, 'GatewayLab'), name: 'GatewayLab' },
-      { id: 'dynamicLab', label: '🚦 Routing Fundamentals Matrix', component: unpack(DynamicRoutingModule, 'DynamicRoutingLab'), name: 'DynamicRoutingLab' },
+      { id: 'lpmSim',     label: '🎯 How Routers Choose Paths',    component: LpmSimulatorLazy,  name: 'LpmSimulator' },
+      { id: 'gatewayLab', label: '🎛️ Smart Backup Routes',         component: GatewayLabLazy,    name: 'GatewayLab' },
+      { id: 'dynamicLab', label: '🚦 Routing Fundamentals Matrix', component: DynamicRoutingLazy, name: 'DynamicRoutingLab' },
     ]
   },
   {
     catId: 'wireless',
     catLabel: '📶 Wireless',
     tools: [
-      { id: 'wifi', label: '📊 Wi-Fi Signal Graph', component: unpack(WifiAnalModule, 'WifiAnalyzer'), name: 'WifiAnalyzer' },
-      { id: 'roaming', label: '🔄 Cell Overlap & Roaming', component: unpack(WifiRoamModule, 'WifiRoamingLab'), name: 'WifiRoamingLab' },
-      { id: 'beamforming', label: '🎯 Focusing Wireless Signals', component: unpack(WifiBeamModule, 'WifiBeamforming'), name: 'WifiBeamforming' },
-      { id: 'security', label: '🔒 Wi-Fi Security (WPA)', component: unpack(WifiSecModule, 'WifiSecurity'), name: 'WifiSecurity' },
-      { id: 'standards', label: '📚 Wireless Standards', component: unpack(WifiStandModule, 'WifiStandards'), name: 'WifiStandards' },
+      { id: 'wifi',        label: '📊 Wi-Fi Signal Graph',       component: WifiAnalyzerLazy,    name: 'WifiAnalyzer' },
+      { id: 'roaming',     label: '🔄 Cell Overlap & Roaming',   component: WifiRoamingLazy,     name: 'WifiRoamingLab' },
+      { id: 'beamforming', label: '🎯 Focusing Wireless Signals', component: WifiBeamformingLazy, name: 'WifiBeamforming' },
+      { id: 'security',    label: '🔒 Wi-Fi Security (WPA)',      component: WifiSecurityLazy,    name: 'WifiSecurity' },
+      { id: 'standards',   label: '📚 Wireless Standards',        component: WifiStandardsLazy,   name: 'WifiStandards' },
     ]
   },
   {
     catId: 'security',
     catLabel: '🔒 Security',
     tools: [
-      { id: 'layer2', label: '🛡️ Layer 2 Mitigation', component: unpack(Layer2SecurityModule, 'Layer2SecurityLab'), name: 'Layer2SecurityLab' },
-      { id: 'aclLab', label: '🛡️ ACL Rules Simulator', component: unpack(AclModule, 'AclLab'), name: 'AclLab' },
+      { id: 'layer2', label: '🛡️ Layer 2 Mitigation',  component: Layer2SecurityLazy, name: 'Layer2SecurityLab' },
+      { id: 'aclLab', label: '🛡️ ACL Rules Simulator', component: AclLabLazy,         name: 'AclLab' },
     ]
   },
   {
     catId: 'powershell',
     catLabel: '📟 PowerShell',
     tools: [
-      { id: 'cheatsheet', label: '📋 Systems & Diagnostics Matrix', component: unpack(PowerShellModule, 'PowerShellCheatsheet'), name: 'PowerShellCheatsheet' },
+      { id: 'cheatsheet', label: '📋 Systems & Diagnostics Matrix', component: PowerShellLazy, name: 'PowerShellCheatsheet' },
     ]
   },
   {
     catId: 'training',
     catLabel: '🎯 Training',
     tools: [
-      { id: 'practice', label: '⚔️ Exam Practice Sandbox', component: unpack(PracticeModule, 'PracticeStation'), name: 'PracticeStation' },
+      { id: 'practice', label: '⚔️ Exam Practice Sandbox', component: PracticeStationLazy, name: 'PracticeStation' },
     ]
   }
 ];
@@ -178,7 +169,21 @@ export default function App() {
     return currentCatObj?.tools.some(t => t.id === urlTool) ? urlTool! : currentCatObj?.tools[0].id || '';
   });
 
-  const [isDarkMode, setIsDarkMode] = useState<boolean>(true);
+  // Persisted across sessions via localStorage; defaults to dark
+  const [isDarkMode, setIsDarkMode] = useState<boolean>(() => {
+    try {
+      const saved = localStorage.getItem('netforge-theme');
+      return saved !== null ? saved === 'dark' : true;
+    } catch {
+      return true;
+    }
+  });
+
+  useEffect(() => {
+    try {
+      localStorage.setItem('netforge-theme', isDarkMode ? 'dark' : 'light');
+    } catch { /* storage unavailable in private/sandboxed contexts */ }
+  }, [isDarkMode]);
 
   // --- DYNAMIC BROWSER TAB TITLE MANAGEMENT ---
   useEffect(() => {
@@ -186,14 +191,12 @@ export default function App() {
     const currentToolObj = currentCatObj?.tools.find(t => t.id === activeTool);
 
     if (currentToolObj) {
-      // Strips explicit emojis from labels cleanly for clean browser presentation
-      const plainLabel = currentToolObj.label.replace(/[\uE000-\uF8FF]|\uD83C[\uDC00-\uDFFF]|\uD83D[\uDC00-\uDFFF]|[\u2011-\u26FF]|\uD83E[\uDD10-\uDDFF]/g, '').trim();
+      const plainLabel = currentToolObj.label.replace(/[-]|\uD83C[\uDC00-\uDFFF]|\uD83D[\uDC00-\uDFFF]|[‑-⛿]|\uD83E[\uDD10-\uDDFF]/g, '').trim();
       document.title = `${plainLabel} | Netforge`;
     } else {
       document.title = 'Netforge | System Architect Suite';
     }
 
-    // Preserve search params configuration history stack safely
     const url = new URL(window.location.href);
     url.searchParams.set('cat', activeCategory);
     url.searchParams.set('tool', activeTool);
@@ -215,10 +218,10 @@ export default function App() {
   return (
     <div style={{ backgroundColor: activePalette.appBg, minHeight: '100vh', padding: '2rem 1rem', fontFamily: 'system-ui, -apple-system, sans-serif', boxSizing: 'border-box', transition: 'background-color 0.2s ease' }}>
       <div style={{ maxWidth: '900px', margin: '0 auto 1.5rem auto' }}>
-        
+
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '2rem' }}>
           <h2 style={{ color: activePalette.textPrimary, fontSize: '1.4rem', fontWeight: 800, margin: 0, letterSpacing: '-0.025em' }}>
-            NET<span style={{ color: activePalette.accent }}>FORGE</span> SYSTEM ARCHITECT SUITE
+            NET<span style={{ color: activePalette.accent }}>FORGE</span> NETWORK SUITE
           </h2>
           <button type="button" onClick={() => setIsDarkMode(!isDarkMode)} style={{ width: '2.4rem', height: '2.4rem', backgroundColor: activePalette.containerBg, color: activePalette.textPrimary, border: `1px solid ${activePalette.border}`, borderRadius: '50%', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '1rem' }}>
             {isDarkMode ? '☀️' : '🌙'}
@@ -246,7 +249,15 @@ export default function App() {
       </div>
 
       <div>
-        <SafeComponentBridge target={selectedToolObj.component} name={selectedToolObj.name} isDarkMode={isDarkMode} />
+        <Suspense fallback={
+          <div style={{ padding: '3rem', textAlign: 'center', color: activePalette.textMuted }}>
+            <div style={{ fontSize: '2rem', marginBottom: '0.5rem' }}>⚡</div>
+            <p style={{ margin: 0, fontSize: '0.9rem' }}>Loading lab...</p>
+          </div>
+        }>
+          {/* key resets the error boundary when switching between labs */}
+          <SafeComponentBridge key={selectedToolObj.id} target={selectedToolObj.component} name={selectedToolObj.name} isDarkMode={isDarkMode} />
+        </Suspense>
       </div>
     </div>
   );
