@@ -49,7 +49,6 @@ export const QosLab: React.FC<QosLabProps> = ({ isDarkMode = true }) => {
   const [tab, setTab]         = useState<QosTab>('dscp');
   const [mode, setMode]       = useState<QueueMode>('fifo');
   const [txStep, setTxStep]   = useState(0);
-  const [shapStep, setShapStep] = useState(0);
   const T = getLabTheme(isDarkMode);
 
   const typeColor = (t: PktType) =>
