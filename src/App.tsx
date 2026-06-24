@@ -1,7 +1,9 @@
 ﻿import { useState, useEffect, useRef, Component, lazy, Suspense } from 'react';
 
+type LabProps = { isDarkMode: boolean; isPro?: boolean; onUpgrade?: () => void };
+
 const lazyLab = (loader: () => Promise<Record<string, unknown>>, name: string) =>
-  lazy(() => loader().then(m => ({ default: (m.default ?? m[name] ?? Object.values(m)[0]) as React.ComponentType<{ isDarkMode: boolean }> })));
+  lazy(() => loader().then(m => ({ default: (m.default ?? m[name] ?? Object.values(m)[0]) as React.ComponentType<LabProps> })));
 
 // ── Lab imports ──────────────────────────────────────────────────────────────
 const OsiModelLazy         = lazyLab(() => import('./OsiModel'),             'OsiModel');
@@ -51,7 +53,7 @@ import { ProfilePage }           from './components/ProfilePage';
 
 // ── Error boundary ────────────────────────────────────────────────────────────
 class SafeComponentBridge extends Component<
-  { target: React.ComponentType<{ isDarkMode: boolean }>; name: string; isDarkMode: boolean },
+  { target: React.ComponentType<LabProps>; name: string; isDarkMode: boolean; isPro?: boolean; onUpgrade?: () => void },
   { hasError: boolean }
 > {
   state = { hasError: false };
@@ -65,7 +67,7 @@ class SafeComponentBridge extends Component<
       </div>
     );
     const C = this.props.target;
-    return <C isDarkMode={this.props.isDarkMode} />;
+    return <C isDarkMode={this.props.isDarkMode} isPro={this.props.isPro} onUpgrade={this.props.onUpgrade} />;
   }
 }
 
@@ -164,7 +166,7 @@ function PremiumGate({ label, onUnlock, T }: { label:string; onUnlock:()=>void; 
 
 // ── App ───────────────────────────────────────────────────────────────────────
 function AppInner() {
-  const { user, profile, refreshProfile } = useAuth();
+  const { user, profile, refreshProfile, signInWithGoogle } = useAuth();
   const [activeCat,  setActiveCat]  = useState(() => { const u=new URLSearchParams(window.location.search).get('cat'); return REGISTRY.some(c=>c.catId===u)?u!:'fundamentals'; });
   const [activeTool, setActiveTool] = useState(() => { const u=new URLSearchParams(window.location.search).get('tool'); const c=REGISTRY.find(c=>c.catId===activeCat); return c?.tools.some(t=>t.id===u)?u!:c?.tools[0].id??''; });
   const [isDark,     setIsDark]     = useState(() => ls.get('netforge-theme','dark')==='dark');
@@ -217,7 +219,7 @@ function AppInner() {
   };
 
   const toggleDone = (id:string) => setCompleted(prev=>{ const n=new Set(prev); n.has(id)?n.delete(id):n.add(id); return n; });
-  const unlockPremium = () => setShowUpgrade(true);
+  const unlockPremium = () => { if (!user) { void signInWithGoogle(); return; } setShowUpgrade(true); };
 
   const T = isDark ? THEME.dark : THEME.light;
   const hasPremium = profile?.is_pro ?? false;
@@ -386,7 +388,7 @@ function AppInner() {
                 <span style={{ display:isMobile?'none':'inline' }}>{isDone?'Completed':'Mark complete'}</span>
               </button>
           }
-          <AuthButton T={T} onUpgrade={() => setShowUpgrade(true)} onProfile={() => setShowProfile(true)} />
+          <AuthButton T={T} onUpgrade={unlockPremium} onProfile={() => setShowProfile(true)} />
         </div>
 
         {/* Lab content */}
@@ -395,7 +397,7 @@ function AppInner() {
             <PremiumGate label={selectedTool.label} onUnlock={unlockPremium} T={T} />
           ) : (
             <Suspense fallback={<div style={{ padding:'4rem', textAlign:'center', color:T.textMuted }}><p style={{ margin:0, fontSize:'0.85rem' }}>Loading...</p></div>}>
-              <SafeComponentBridge key={selectedTool.id} target={selectedTool.component as React.ComponentType<{isDarkMode:boolean}>} name={selectedTool.name} isDarkMode={isDark} />
+              <SafeComponentBridge key={selectedTool.id} target={selectedTool.component} name={selectedTool.name} isDarkMode={isDark} isPro={hasPremium} onUpgrade={unlockPremium} />
             </Suspense>
           )}
         </div>

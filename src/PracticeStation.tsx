@@ -56,7 +56,7 @@ function makeDrillQ(): DrillQuestion {
 
 // ─── Component ────────────────────────────────────────────────────────────────
 
-export const PracticeStation: React.FC<{ isDarkMode?: boolean }> = ({ isDarkMode = true }) => {
+export const PracticeStation: React.FC<{ isDarkMode?: boolean; isPro?: boolean; onUpgrade?: () => void }> = ({ isDarkMode = true, isPro = false, onUpgrade }) => {
   const T = getLabTheme(isDarkMode);
 
   // ── Screen state ─────────────────────────────────────────────────────────────
@@ -241,11 +241,19 @@ export const PracticeStation: React.FC<{ isDarkMode?: boolean }> = ({ isDarkMode
               const m = EXAM_META[type];
               return (
                 <div key={type} style={{ ...panel, padding: '1.25rem', borderTop: `3px solid ${m.color}`, display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
-                  <div>
-                    <p style={{ margin: '0 0 0.2rem', fontWeight: 800, fontSize: '0.95rem', color: T.textPrimary }}>{m.label}</p>
-                    <p style={{ margin: 0, color: T.textSecondary, fontSize: '0.77rem' }}>{m.description}</p>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+                    <div>
+                      <p style={{ margin: '0 0 0.2rem', fontWeight: 800, fontSize: '0.95rem', color: T.textPrimary }}>{m.label}</p>
+                      <p style={{ margin: 0, color: T.textSecondary, fontSize: '0.77rem' }}>{m.description}</p>
+                    </div>
+                    {!isPro && (
+                      <span style={{ fontSize: '0.6rem', fontWeight: 800, color: T.accent, background: `${T.accent}18`, border: `1px solid ${T.accent}40`, padding: '2px 7px', borderRadius: 6, flexShrink: 0, marginLeft: 8 }}>PRO</span>
+                    )}
                   </div>
-                  <button onClick={() => startExam(type)} style={mkBtn('accent', { textAlign: 'center' })}>Start Exam</button>
+                  {isPro
+                    ? <button onClick={() => startExam(type)} style={mkBtn('accent', { textAlign: 'center' })}>Start Exam</button>
+                    : <button onClick={onUpgrade} style={mkBtn('ghost', { textAlign: 'center', color: T.accent, borderColor: `${T.accent}50` })}>🔒 Unlock Pro — £4.99</button>
+                  }
                 </div>
               );
             })}
