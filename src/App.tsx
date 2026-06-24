@@ -42,6 +42,13 @@ const DnsLabLazy           = lazyLab(() => import('./DnsLab'),               'Dn
 const TlsLabLazy           = lazyLab(() => import('./TlsLab'),               'TlsLab');
 const MacLabLazy           = lazyLab(() => import('./MacLab'),               'MacLab');
 
+// ── Auth / ads / payment ──────────────────────────────────────────────────────
+import { AuthProvider, useAuth } from './contexts/AuthContext';
+import { AuthButton }            from './components/AuthButton';
+import { UpgradeModal }          from './components/UpgradeModal';
+import { ProSuccessModal }       from './components/ProSuccessModal';
+import { ProfilePage }           from './components/ProfilePage';
+
 // ── Error boundary ────────────────────────────────────────────────────────────
 class SafeComponentBridge extends Component<
   { target: React.ComponentType<{ isDarkMode: boolean }>; name: string; isDarkMode: boolean },
@@ -149,23 +156,26 @@ function PremiumGate({ label, onUnlock, T }: { label:string; onUnlock:()=>void; 
         <button onClick={onUnlock} style={{ display:'block', width:'100%', padding:'0.85rem', borderRadius:8, border:'none', backgroundColor:T.accent, color:'#fff', fontWeight:700, fontSize:'0.9rem', cursor:'pointer', marginBottom:'0.75rem' }}>
           Unlock Premium
         </button>
-        <p style={{ margin:0, fontSize:'0.72rem', color:T.textMuted }}>Demo mode — click above to unlock all labs for this session.</p>
+        <p style={{ margin:0, fontSize:'0.72rem', color:T.textMuted }}>One-time payment of £4.99 unlocks all pro labs permanently.</p>
       </div>
     </div>
   );
 }
 
 // ── App ───────────────────────────────────────────────────────────────────────
-export default function App() {
+function AppInner() {
+  const { user, profile, refreshProfile } = useAuth();
   const [activeCat,  setActiveCat]  = useState(() => { const u=new URLSearchParams(window.location.search).get('cat'); return REGISTRY.some(c=>c.catId===u)?u!:'fundamentals'; });
   const [activeTool, setActiveTool] = useState(() => { const u=new URLSearchParams(window.location.search).get('tool'); const c=REGISTRY.find(c=>c.catId===activeCat); return c?.tools.some(t=>t.id===u)?u!:c?.tools[0].id??''; });
   const [isDark,     setIsDark]     = useState(() => ls.get('netforge-theme','dark')==='dark');
   const [completed,  setCompleted]  = useState<Set<string>>(() => { try { const s=localStorage.getItem('netforge-progress'); return s?new Set(JSON.parse(s) as string[]):new Set(); } catch { return new Set(); } });
-  const [hasPremium, setHasPremium] = useState(() => ls.get('netforge-premium','false')==='true');
   const [isMobile,   setIsMobile]   = useState(() => window.innerWidth<768);
   const [sidebarOpen,setSidebarOpen]= useState(() => window.innerWidth>=768);
   const [collapsed,  setCollapsed]  = useState(() => ls.get('netforge-sidebar-collapsed','false')==='true');
-  const [search,     setSearch]     = useState('');
+  const [search,      setSearch]      = useState('');
+  const [showUpgrade,     setShowUpgrade]     = useState(false);
+  const [showProSuccess,  setShowProSuccess]  = useState(false);
+  const [showProfile,     setShowProfile]     = useState(false);
   const searchRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
@@ -174,9 +184,14 @@ export default function App() {
     return ()=>window.removeEventListener('resize',onResize);
   },[]);
 
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    if (params.get('payment') === 'success') { void refreshProfile(); setShowProSuccess(true); }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   useEffect(() => { try { localStorage.setItem('netforge-progress',JSON.stringify([...completed])); } catch {} },[completed]);
   useEffect(() => { ls.set('netforge-theme', isDark?'dark':'light'); },[isDark]);
-  useEffect(() => { ls.set('netforge-premium', hasPremium?'true':'false'); },[hasPremium]);
   useEffect(() => { ls.set('netforge-sidebar-collapsed', collapsed?'true':'false'); },[collapsed]);
 
   useEffect(() => {
@@ -185,6 +200,7 @@ export default function App() {
     document.title = tool?`${tool.label} | Netforge`:'Netforge';
     const url=new URL(window.location.href);
     url.searchParams.set('cat',activeCat); url.searchParams.set('tool',activeTool);
+    url.searchParams.delete('payment');
     window.history.pushState({},'',url.toString());
   },[activeCat,activeTool]);
 
@@ -201,16 +217,18 @@ export default function App() {
   };
 
   const toggleDone = (id:string) => setCompleted(prev=>{ const n=new Set(prev); n.has(id)?n.delete(id):n.add(id); return n; });
-  const unlockPremium = () => setHasPremium(true);
+  const unlockPremium = () => setShowUpgrade(true);
 
   const T = isDark ? THEME.dark : THEME.light;
+  const hasPremium = profile?.is_pro ?? false;
   const currentCat = REGISTRY.find(c=>c.catId===activeCat)??REGISTRY[0];
   const selectedTool = currentCat.tools.find(t=>t.id===activeTool)??currentCat.tools[0];
   const isDone = completed.has(selectedTool.id);
   const isLocked = !!selectedTool.premium && !hasPremium;
-  const totalLabs = REGISTRY.reduce((n,c)=>n+c.tools.length,0);
-  const totalDone = completed.size;
-  const pct = Math.round((totalDone/totalLabs)*100);
+  const totalLabs    = REGISTRY.reduce((n,c)=>n+c.tools.length,0);
+  const totalDone    = completed.size;
+  const pct          = Math.round((totalDone/totalLabs)*100);
+  const completedLabs = ALL_TOOLS.filter(t => completed.has(t.id));
 
   const q = search.trim().toLowerCase();
   const searchResults = q ? ALL_TOOLS.filter(t=>t.label.toLowerCase().includes(q)) : [];
@@ -224,6 +242,7 @@ export default function App() {
     : { width:sidebarW, flexShrink:0, display:'flex', flexDirection:'column', height:'100vh', backgroundColor:T.sidebarBg, borderRight:collapsed?'none':`1px solid ${T.border}`, overflow:'hidden', transition:'width 0.25s ease' };
 
   return (
+    <>
     <div style={{ display:'flex', height:'100vh', overflow:'hidden', backgroundColor:T.appBg, fontFamily:'system-ui,-apple-system,"Segoe UI",sans-serif' }}>
 
       {/* Backdrop */}
@@ -330,8 +349,7 @@ export default function App() {
           {hasPremium && (
             <div style={{ display:'flex', alignItems:'center', gap:6, padding:'4px 8px', borderRadius:6, backgroundColor:`${T.accent}12`, border:`1px solid ${T.accent}30` }}>
               <span style={{ fontSize:'0.6rem', fontWeight:800, color:T.accent }}>PRO</span>
-              <span style={{ fontSize:'0.65rem', color:T.textMuted }}>Premium active</span>
-              <button onClick={()=>setHasPremium(false)} style={{ ...btnBase, marginLeft:'auto', fontSize:'0.6rem', color:T.textMuted, textDecoration:'underline' }}>reset</button>
+              <span style={{ fontSize:'0.65rem', color:T.textMuted }}>Pro active</span>
             </div>
           )}
           <button onClick={()=>setIsDark(!isDark)}
@@ -368,6 +386,7 @@ export default function App() {
                 <span style={{ display:isMobile?'none':'inline' }}>{isDone?'Completed':'Mark complete'}</span>
               </button>
           }
+          <AuthButton T={T} onUpgrade={() => setShowUpgrade(true)} onProfile={() => setShowProfile(true)} />
         </div>
 
         {/* Lab content */}
@@ -382,5 +401,13 @@ export default function App() {
         </div>
       </div>
     </div>
+    {showUpgrade    && <UpgradeModal    onClose={() => setShowUpgrade(false)}    T={T} />}
+    {showProSuccess && <ProSuccessModal onClose={() => setShowProSuccess(false)} T={T} />}
+    {showProfile && user && <ProfilePage user={user} isPro={hasPremium} completedLabs={completedLabs} totalLabs={totalLabs} onClose={() => setShowProfile(false)} T={T} />}
+    </>
   );
+}
+
+export default function App() {
+  return <AuthProvider><AppInner /></AuthProvider>;
 }
