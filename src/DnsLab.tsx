@@ -216,7 +216,7 @@ export const DnsLab: React.FC<DnsLabProps> = ({ isDarkMode = true }) => {
   const [step,      setStep]      = useState(0);
   const [dotT,      setDotT]      = useState(0);
   const [autoPlay,  setAutoPlay]  = useState(false);
-  const rafRef = useRef<number>();
+  const rafRef = useRef<number>(undefined);
   const t0Ref  = useRef<number>(0);
 
   const sc    = SCENARIOS[scenario];

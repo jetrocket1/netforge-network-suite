@@ -272,7 +272,7 @@ export const TlsLab: React.FC<TlsLabProps> = ({ isDarkMode = true }) => {
   const [step,      setStep]      = useState(0);
   const [dotT,      setDotT]      = useState(1);
   const [autoPlay,  setAutoPlay]  = useState(false);
-  const rafRef = useRef<number>();
+  const rafRef = useRef<number>(undefined);
   const t0Ref  = useRef<number>(0);
 
   const sc  = SCENARIOS[scenario];

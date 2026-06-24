@@ -44,12 +44,6 @@ const MODE_INFO: Record<QueueMode, {label:string;desc:string;pro:string;con:stri
   llq:   { label:'LLQ',   desc:'Low Latency Queuing — adds a strict priority queue (for voice) on top of CBWFQ. The best of both worlds.', pro:'Voice gets strict priority; all other classes get guaranteed BW', con:'Strict priority class can starve others if misconfigured (police it!)' },
 };
 
-const SHAPING_STEPS = [
-  { interval:1, arrive:10, cir:5, tokens:50 },
-  { interval:2, arrive:0,  cir:5, tokens:50 },
-  { interval:3, arrive:0,  cir:5, tokens:50 },
-  { interval:4, arrive:0,  cir:5, tokens:50 },
-];
 
 export const QosLab: React.FC<QosLabProps> = ({ isDarkMode = true }) => {
   const [tab, setTab]         = useState<QosTab>('dscp');
@@ -101,8 +95,6 @@ export const QosLab: React.FC<QosLabProps> = ({ isDarkMode = true }) => {
   const shapPass = shapeResult.filter(r=>r.pass).length;
   const shapBuf  = shapeResult.filter(r=>r.delay).length;
 
-  const visiblePol  = policyResult.slice(0, shapStep === 0 ? 0 : Math.min(shapStep*2, BURST_PACKETS));
-  const visibleShap = shapeResult.slice(0, shapStep === 0 ? 0 : Math.min(shapStep*2, BURST_PACKETS));
 
   const PKT_BOX = (p: {id:number;type:PktType;mark:string}, dim?: boolean) => (
     <div key={p.id} title={`Pkt ${p.id} · DSCP ${PACKETS.find(x=>x.id===p.id)?.dscp} (${p.mark})`}
