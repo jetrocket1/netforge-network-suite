@@ -3,13 +3,14 @@ import type { ReactNode } from 'react';
 import type { User } from '@supabase/supabase-js';
 import { supabase } from '../lib/supabase';
 
-interface Profile { id: string; is_pro: boolean; }
+interface Profile { id: string; is_pro: boolean; has_labs: boolean; has_exam: boolean; }
 
 interface AuthCtx {
   user: User | null;
   profile: Profile | null;
   loading: boolean;
   isPro: boolean;
+  hasExam: boolean;
   signInWithGoogle: () => Promise<void>;
   signOut: () => Promise<void>;
   refreshProfile: () => Promise<void>;
@@ -25,7 +26,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   async function fetchProfile(uid: string) {
     const { data } = await supabase
       .from('profiles')
-      .select('id, is_pro')
+      .select('id, is_pro, has_labs, has_exam')
       .eq('id', uid)
       .single();
     setProfile(data ?? null);
@@ -59,10 +60,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const refreshProfile = async () => { if (user) await fetchProfile(user.id); };
 
+  const isPro  = (profile?.is_pro || profile?.has_labs)  ?? false;
+  const hasExam = (profile?.is_pro || profile?.has_exam) ?? false;
+
   return (
     <Ctx.Provider value={{
       user, profile, loading,
-      isPro: profile?.is_pro ?? false,
+      isPro, hasExam,
       signInWithGoogle, signOut, refreshProfile,
     }}>
       {children}

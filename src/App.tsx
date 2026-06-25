@@ -1,6 +1,6 @@
 ﻿import { useState, useEffect, useRef, Component, lazy, Suspense } from 'react';
 
-type LabProps = { isDarkMode: boolean; isPro?: boolean; onUpgrade?: () => void };
+type LabProps = { isDarkMode: boolean; isPro?: boolean; hasExam?: boolean; onUpgrade?: () => void };
 
 const lazyLab = (loader: () => Promise<Record<string, unknown>>, name: string) =>
   lazy(() => loader().then(m => ({ default: (m.default ?? m[name] ?? Object.values(m)[0]) as React.ComponentType<LabProps> })));
@@ -20,6 +20,8 @@ const SubnetCalcLazy       = lazyLab(() => import('./SubnetCalculator'),     'Su
 const SubnetSplitterLazy   = lazyLab(() => import('./SubnetSplitter'),       'SubnetSplitter');
 const Ipv6SuiteLazy        = lazyLab(() => import('./Ipv6Suite'),            'Ipv6Suite');
 const SubnetCheatLazy      = lazyLab(() => import('./SubnetCheatSheet'),     'SubnetCheatSheet');
+const SwitchIntroLazy      = lazyLab(() => import('./SwitchIntro'),          'SwitchIntro');
+const RouterIntroLazy      = lazyLab(() => import('./RouterIntro'),          'RouterIntro');
 const VlanSuiteLazy        = lazyLab(() => import('./VlanSuite'),            'VlanSuite');
 const LinkAggLabLazy       = lazyLab(() => import('./LinkAggregationLab'),   'LinkAggregationLab');
 const StpLabLazy           = lazyLab(() => import('./StpLab'),               'StpLab');
@@ -52,12 +54,14 @@ const IpsecLabLazy         = lazyLab(() => import('./IpsecLab'),             'Ip
 import { AuthProvider, useAuth } from './contexts/AuthContext';
 import { AuthButton }            from './components/AuthButton';
 import { UpgradeModal }          from './components/UpgradeModal';
+import type { Product }          from './components/UpgradeModal';
 import { ProSuccessModal }       from './components/ProSuccessModal';
+import { PricingModal }          from './components/PricingModal';
 import { ProfilePage }           from './components/ProfilePage';
 
 // ── Error boundary ────────────────────────────────────────────────────────────
 class SafeComponentBridge extends Component<
-  { target: React.ComponentType<LabProps>; name: string; isDarkMode: boolean; isPro?: boolean; onUpgrade?: () => void },
+  { target: React.ComponentType<LabProps>; name: string; isDarkMode: boolean; isPro?: boolean; hasExam?: boolean; onUpgrade?: () => void },
   { hasError: boolean }
 > {
   state = { hasError: false };
@@ -71,7 +75,7 @@ class SafeComponentBridge extends Component<
       </div>
     );
     const C = this.props.target;
-    return <C isDarkMode={this.props.isDarkMode} isPro={this.props.isPro} onUpgrade={this.props.onUpgrade} />;
+    return <C isDarkMode={this.props.isDarkMode} isPro={this.props.isPro} hasExam={this.props.hasExam} onUpgrade={this.props.onUpgrade} />;
   }
 }
 
@@ -96,27 +100,29 @@ const REGISTRY: Category[] = [
     { id:'tcpLab',          label:'TCP Connection Lifecycle',    component:TcpLabLazy,          name:'TcpLab',             difficulty:'intermediate' },
     { id:'wirelessToWired', label:'Wireless-to-Wired Path',      component:WirelessToWiredLazy, name:'WirelessToWiredLab', difficulty:'intermediate' },
   ]},
-  { catId:'switching', catLabel:'Switching', tools:[
-    { id:'vlanMap',         label:'VLAN Configuration',          component:VlanSuiteLazy,     name:'VlanSuite',           difficulty:'intermediate' },
-    { id:'linkAggregation', label:'Link Aggregation',            component:LinkAggLabLazy,    name:'LinkAggregationLab',  difficulty:'intermediate' },
-    { id:'stpLab',          label:'Spanning Tree Protocol',      component:StpLabLazy,        name:'StpLab',              difficulty:'intermediate' },
-    { id:'macLab',          label:'MAC Learning & Forwarding',   component:MacLabLazy,        name:'MacLab',              difficulty:'beginner' },
-    { id:'dot1xLab',        label:'802.1X Network Access Control', component:Dot1xLabLazy,    name:'Dot1xLab',            difficulty:'advanced', premium:true },
-  ]},
   { catId:'subnetting', catLabel:'Subnetting', tools:[
     { id:'calculator', label:'IP Subnet Calculator',   component:SubnetCalcLazy,    name:'SubnetCalculator', difficulty:'beginner' },
     { id:'splitter',   label:'VLSM Planner',           component:SubnetSplitterLazy,name:'SubnetSplitter',   difficulty:'intermediate' },
     { id:'ipv6Suite',  label:'IPv6 Address Basics',    component:Ipv6SuiteLazy,     name:'Ipv6Suite',        difficulty:'intermediate' },
     { id:'cheatsheet', label:'Subnetting Quick Sheet', component:SubnetCheatLazy,   name:'SubnetCheatSheet', difficulty:'beginner' },
   ]},
+  { catId:'switching', catLabel:'Switching', tools:[
+    { id:'switchIntro',     label:'What is a Switch?',           component:SwitchIntroLazy,   name:'SwitchIntro',         difficulty:'beginner' },
+    { id:'macLab',          label:'MAC Learning & Forwarding',   component:MacLabLazy,        name:'MacLab',              difficulty:'beginner' },
+    { id:'vlanMap',         label:'VLAN Configuration',          component:VlanSuiteLazy,     name:'VlanSuite',           difficulty:'intermediate' },
+    { id:'stpLab',          label:'Spanning Tree Protocol',      component:StpLabLazy,        name:'StpLab',              difficulty:'intermediate' },
+    { id:'linkAggregation', label:'Link Aggregation',            component:LinkAggLabLazy,    name:'LinkAggregationLab',  difficulty:'intermediate' },
+    { id:'dot1xLab',        label:'802.1X Network Access Control', component:Dot1xLabLazy,    name:'Dot1xLab',            difficulty:'advanced', premium:true },
+  ]},
   { catId:'routing', catLabel:'Routing', tools:[
-    { id:'lpmSim',     label:'Longest Prefix Match',     component:LpmSimLazy,        name:'LpmSimulator',     difficulty:'intermediate' },
-    { id:'gatewayLab', label:'Gateway & Backup Routes',  component:GatewayLabLazy,    name:'GatewayLab',       difficulty:'beginner' },
-    { id:'dynamicLab', label:'Routing Protocols Matrix', component:DynamicRoutingLazy,name:'DynamicRoutingLab',difficulty:'intermediate' },
-    { id:'natLab',     label:'NAT / PAT Simulator',      component:NatLabLazy,        name:'NatLab',           difficulty:'intermediate' },
-    { id:'ospfLab',    label:'OSPF Visualiser',          component:OspfLabLazy,       name:'OspfLab',          difficulty:'advanced', premium:true },
-    { id:'qosLab',     label:'QoS Traffic Management',   component:QosLabLazy,        name:'QosLab',           difficulty:'advanced', premium:true },
-    { id:'ipsecLab',   label:'IPsec / WireGuard VPN',    component:IpsecLabLazy,      name:'IpsecLab',         difficulty:'advanced', premium:true },
+    { id:'routerIntro', label:'What is a Router?',        component:RouterIntroLazy,   name:'RouterIntro',      difficulty:'beginner' },
+    { id:'gatewayLab',  label:'Gateway & Backup Routes',  component:GatewayLabLazy,    name:'GatewayLab',       difficulty:'beginner' },
+    { id:'lpmSim',      label:'Longest Prefix Match',     component:LpmSimLazy,        name:'LpmSimulator',     difficulty:'intermediate' },
+    { id:'natLab',      label:'NAT / PAT Simulator',      component:NatLabLazy,        name:'NatLab',           difficulty:'intermediate' },
+    { id:'dynamicLab',  label:'Routing Protocols Matrix', component:DynamicRoutingLazy,name:'DynamicRoutingLab',difficulty:'intermediate' },
+    { id:'ospfLab',     label:'OSPF Visualiser',          component:OspfLabLazy,       name:'OspfLab',          difficulty:'advanced', premium:true },
+    { id:'qosLab',      label:'QoS Traffic Management',   component:QosLabLazy,        name:'QosLab',           difficulty:'advanced', premium:true },
+    { id:'ipsecLab',    label:'IPsec / WireGuard VPN',    component:IpsecLabLazy,      name:'IpsecLab',         difficulty:'advanced', premium:true },
   ]},
   { catId:'wireless', catLabel:'Wireless', tools:[
     { id:'wifi',        label:'Wi-Fi Signal Analyser',  component:WifiAnalyzerLazy,   name:'WifiAnalyzer',   difficulty:'beginner' },
@@ -168,7 +174,7 @@ function PremiumGate({ label, onUnlock, T }: { label:string; onUnlock:()=>void; 
         <button onClick={onUnlock} style={{ display:'block', width:'100%', padding:'0.85rem', borderRadius:8, border:'none', backgroundColor:T.accent, color:'#fff', fontWeight:700, fontSize:'0.9rem', cursor:'pointer', marginBottom:'0.75rem' }}>
           Unlock Premium
         </button>
-        <p style={{ margin:0, fontSize:'0.72rem', color:T.textMuted }}>One-time payment of £4.99 unlocks all pro labs permanently.</p>
+        <p style={{ margin:0, fontSize:'0.72rem', color:T.textMuted }}>Labs Pro from £5.99 · Exam Prep £8.99 · Full Bundle £11.99 · One-time payment.</p>
       </div>
     </div>
   );
@@ -176,7 +182,7 @@ function PremiumGate({ label, onUnlock, T }: { label:string; onUnlock:()=>void; 
 
 // ── App ───────────────────────────────────────────────────────────────────────
 function AppInner() {
-  const { user, profile, refreshProfile, signInWithGoogle } = useAuth();
+  const { user, isPro: ctxIsPro, hasExam: ctxHasExam, refreshProfile, signInWithGoogle } = useAuth();
   const [activeCat,  setActiveCat]  = useState(() => { const u=new URLSearchParams(window.location.search).get('cat'); return REGISTRY.some(c=>c.catId===u)?u!:'fundamentals'; });
   const [activeTool, setActiveTool] = useState(() => { const u=new URLSearchParams(window.location.search).get('tool'); const c=REGISTRY.find(c=>c.catId===activeCat); return c?.tools.some(t=>t.id===u)?u!:c?.tools[0].id??''; });
   const [isDark,     setIsDark]     = useState(() => ls.get('netforge-theme','dark')==='dark');
@@ -186,6 +192,8 @@ function AppInner() {
   const [collapsed,  setCollapsed]  = useState(() => ls.get('netforge-sidebar-collapsed','false')==='true');
   const [search,      setSearch]      = useState('');
   const [showUpgrade,     setShowUpgrade]     = useState(false);
+  const [upgradeProduct,  setUpgradeProduct]  = useState<Product>('bundle');
+  const [showPricing,     setShowPricing]     = useState(false);
   const [showProSuccess,  setShowProSuccess]  = useState(false);
   const [showProfile,     setShowProfile]     = useState(false);
   const [showSignIn,      setShowSignIn]      = useState(false);
@@ -238,9 +246,10 @@ function AppInner() {
 
   const toggleDone = (id:string) => setCompleted(prev=>{ const n=new Set(prev); n.has(id)?n.delete(id):n.add(id); return n; });
   const unlockPremium = () => { if (!user) { setShowSignIn(true); return; } setShowUpgrade(true); };
+  const buyProduct = (p: Product) => { setUpgradeProduct(p); if (!user) { setShowSignIn(true); return; } setShowUpgrade(true); };
 
   const T = isDark ? THEME.dark : THEME.light;
-  const hasPremium = profile?.is_pro ?? false;
+  const hasPremium = ctxIsPro;
   const currentCat = REGISTRY.find(c=>c.catId===activeCat)??REGISTRY[0];
   const selectedTool = currentCat.tools.find(t=>t.id===activeTool)??currentCat.tools[0];
   const isDone = completed.has(selectedTool.id);
@@ -455,6 +464,7 @@ function AppInner() {
               {favourites.has(selectedTool.id) ? '★' : '☆'}
             </button>
           )}
+          <button onClick={() => setShowPricing(true)} style={{ ...btnBase, padding:'0.28rem 0.7rem', borderRadius:6, border:`1px solid ${T.border}`, background:T.toggleBg, color:T.textMuted, fontSize:'0.73rem', fontWeight:600, flexShrink:0 }}>Pricing</button>
           <AuthButton T={T} onUpgrade={unlockPremium} onProfile={() => setShowProfile(true)} />
         </div>
 
@@ -464,15 +474,16 @@ function AppInner() {
             <PremiumGate label={selectedTool.label} onUnlock={unlockPremium} T={T} />
           ) : (
             <Suspense fallback={<div style={{ padding:'4rem', textAlign:'center', color:T.textMuted }}><p style={{ margin:0, fontSize:'0.85rem' }}>Loading...</p></div>}>
-              <SafeComponentBridge key={selectedTool.id} target={selectedTool.component} name={selectedTool.name} isDarkMode={isDark} isPro={hasPremium} onUpgrade={unlockPremium} />
+              <SafeComponentBridge key={selectedTool.id} target={selectedTool.component} name={selectedTool.name} isDarkMode={isDark} isPro={hasPremium} hasExam={ctxHasExam} onUpgrade={unlockPremium} />
             </Suspense>
           )}
         </div>
       </div>
     </div>
-    {showUpgrade    && <UpgradeModal    onClose={() => setShowUpgrade(false)}    T={T} />}
+    {showUpgrade    && <UpgradeModal    onClose={() => setShowUpgrade(false)}    T={T} defaultProduct={upgradeProduct} />}
+    {showPricing    && <PricingModal   onClose={() => setShowPricing(false)}    onBuy={buyProduct} isPro={hasPremium} hasExam={ctxHasExam} isLoggedIn={!!user} T={T} />}
     {showProSuccess && <ProSuccessModal onClose={() => setShowProSuccess(false)} T={T} />}
-    {showProfile && user && <ProfilePage user={user} isPro={hasPremium} completedLabs={completedLabs} totalLabs={totalLabs} onClose={() => setShowProfile(false)} T={T} />}
+    {showProfile && user && <ProfilePage user={user} isPro={hasPremium} hasExam={ctxHasExam} completedLabs={completedLabs} totalLabs={totalLabs} onClose={() => setShowProfile(false)} onUpgrade={unlockPremium} T={T} />}
     {showSignIn && (
       <div style={{ position:'fixed', inset:0, background:'rgba(0,0,0,0.65)', display:'flex', alignItems:'center', justifyContent:'center', zIndex:9999 }} onClick={() => setShowSignIn(false)}>
         <div style={{ background: isDark?'#161b22':'#ffffff', border:`1px solid ${T.border}`, borderRadius:14, padding:'2rem', maxWidth:360, width:'90%', textAlign:'center' }} onClick={e => e.stopPropagation()}>

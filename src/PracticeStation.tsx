@@ -56,7 +56,8 @@ function makeDrillQ(): DrillQuestion {
 
 // ─── Component ────────────────────────────────────────────────────────────────
 
-export const PracticeStation: React.FC<{ isDarkMode?: boolean; isPro?: boolean; onUpgrade?: () => void }> = ({ isDarkMode = true, isPro = false, onUpgrade }) => {
+export const PracticeStation: React.FC<{ isDarkMode?: boolean; isPro?: boolean; hasExam?: boolean; onUpgrade?: () => void }> = ({ isDarkMode = true, hasExam = false, onUpgrade }) => {
+  const isPro = hasExam;
   const T = getLabTheme(isDarkMode);
 
   // ── Screen state ─────────────────────────────────────────────────────────────
@@ -194,27 +195,40 @@ export const PracticeStation: React.FC<{ isDarkMode?: boolean; isPro?: boolean; 
 
         {/* Topic Practice */}
         <section style={{ marginBottom: '2rem' }}>
-          <h3 style={{ margin: '0 0 0.75rem', fontSize: '0.72rem', fontWeight: 700, color: T.textMuted, textTransform: 'uppercase', letterSpacing: '0.07em' }}>
-            Topic Practice — MCQ with instant feedback
-          </h3>
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(175px, 1fr))', gap: '0.6rem' }}>
-            {(Object.keys(TOPIC_META) as Topic[]).map(topic => {
-              const m = TOPIC_META[topic];
-              return (
-                <button
-                  key={topic}
-                  onClick={() => startPractice(topic)}
-                  style={{
-                    ...mkBtn('ghost', { display: 'flex', alignItems: 'center', gap: 8, padding: '0.75rem 0.9rem', fontSize: '0.83rem', textAlign: 'left' }),
-                    borderLeft: `3px solid ${m.color}`, borderRadius: 10, color: T.textPrimary,
-                  }}
-                >
-                  <span style={{ fontSize: '1rem', flexShrink: 0 }}>{m.icon}</span>
-                  <span style={{ fontWeight: 600 }}>{m.label}</span>
-                </button>
-              );
-            })}
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '0.75rem' }}>
+            <h3 style={{ margin: 0, fontSize: '0.72rem', fontWeight: 700, color: T.textMuted, textTransform: 'uppercase', letterSpacing: '0.07em' }}>
+              Topic Practice — MCQ with instant feedback
+            </h3>
+            {!isPro && <span style={{ fontSize: '0.6rem', fontWeight: 800, color: T.accent, background: `${T.accent}18`, border: `1px solid ${T.accent}40`, padding: '2px 7px', borderRadius: 6 }}>EXAM PREP</span>}
           </div>
+          {isPro ? (
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(175px, 1fr))', gap: '0.6rem' }}>
+              {(Object.keys(TOPIC_META) as Topic[]).map(topic => {
+                const m = TOPIC_META[topic];
+                return (
+                  <button
+                    key={topic}
+                    onClick={() => startPractice(topic)}
+                    style={{
+                      ...mkBtn('ghost', { display: 'flex', alignItems: 'center', gap: 8, padding: '0.75rem 0.9rem', fontSize: '0.83rem', textAlign: 'left' }),
+                      borderLeft: `3px solid ${m.color}`, borderRadius: 10, color: T.textPrimary,
+                    }}
+                  >
+                    <span style={{ fontSize: '1rem', flexShrink: 0 }}>{m.icon}</span>
+                    <span style={{ fontWeight: 600 }}>{m.label}</span>
+                  </button>
+                );
+              })}
+            </div>
+          ) : (
+            <div style={{ ...panel, padding: '1.25rem', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '1rem', flexWrap: 'wrap' }}>
+              <div>
+                <p style={{ margin: '0 0 0.2rem', fontWeight: 700, color: T.textPrimary, fontSize: '0.88rem' }}>8 topic modules · 174 questions</p>
+                <p style={{ margin: 0, color: T.textSecondary, fontSize: '0.78rem' }}>OSI, TCP/IP, Subnetting, Switching, Routing, Wireless, Security, DNS</p>
+              </div>
+              <button onClick={onUpgrade} style={mkBtn('ghost', { whiteSpace: 'nowrap', flexShrink: 0, color: T.accent, borderColor: `${T.accent}50` })}>🔒 Unlock Exam Prep — £8.99</button>
+            </div>
+          )}
         </section>
 
         {/* Subnetting Drill */}
@@ -252,7 +266,7 @@ export const PracticeStation: React.FC<{ isDarkMode?: boolean; isPro?: boolean; 
                   </div>
                   {isPro
                     ? <button onClick={() => startExam(type)} style={mkBtn('accent', { textAlign: 'center' })}>Start Exam</button>
-                    : <button onClick={onUpgrade} style={mkBtn('ghost', { textAlign: 'center', color: T.accent, borderColor: `${T.accent}50` })}>🔒 Unlock Pro — £4.99</button>
+                    : <button onClick={onUpgrade} style={mkBtn('ghost', { textAlign: 'center', color: T.accent, borderColor: `${T.accent}50` })}>🔒 Unlock Exam Prep — £8.99</button>
                   }
                 </div>
               );

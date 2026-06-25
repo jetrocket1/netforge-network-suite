@@ -63,7 +63,7 @@ export function AuthButton({ T, onUpgrade, onProfile }: Props) {
                   onClick={() => { setOpen(false); onUpgrade(); }}
                   style={{ ...btn, padding: '0.4rem 0.6rem', borderRadius: 6, background: `${T.accent}18`, color: T.accent, fontSize: '0.78rem', fontWeight: 700, textAlign: 'left' }}
                 >
-                  Unlock Pro — £4.99
+                  ⚡ Upgrade — from £5.99
                 </button>
               )
             }
