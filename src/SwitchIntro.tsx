@@ -17,10 +17,6 @@ const NODES = [
 ];
 
 function DevTopo({ mode, sent, dark }: { mode:'hub'|'switch'; sent:boolean; dark:boolean }) {
-  const tc  = dark ? '#e6edf3' : '#1e293b';
-  const bg  = dark ? '#161b22' : '#f1f5f9';
-  const bd  = dark ? '#30363d' : '#cbd5e1';
-  const mc  = dark ? '#8b949e' : '#64748b';
   const isHub = mode === 'hub';
 
   const linkColor = (i: number) => {
@@ -134,10 +130,7 @@ const SWITCH_TYPES = [
 
 /* ─── Network Hierarchy SVG ──────────────────────────────────────── */
 function HierarchySvg({ dark }: { dark:boolean }) {
-  const tc  = dark ? '#e6edf3' : '#1e293b';
   const mc  = dark ? '#8b949e' : '#64748b';
-  const bg  = dark ? '#161b22' : '#f1f5f9';
-  const bd  = dark ? '#30363d' : '#cbd5e1';
 
   const CORE  = { label:'Core Switch', sub:'Cisco Catalyst 9500 / Nexus 9000', col:'#ef4444' };
   const DIST  = { label:'Distribution', sub:'Layer 3 — inter-VLAN routing, ACLs', col:'#a855f7' };

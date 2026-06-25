@@ -216,7 +216,7 @@ export function PricingModal({ onClose, onBuy, isPro, hasExam, isLoggedIn, T }: 
                     {/* Price */}
                     <div style={{ marginBottom:'0.85rem', paddingBottom:'0.85rem', borderBottom:`1px solid ${isDark?'rgba(255,255,255,0.06)':'rgba(0,0,0,0.07)'}` }}>
                       <span style={{ fontSize:'2rem', fontWeight:900, color: owned ? tier.color : T.textPrimary, letterSpacing:'-0.03em', lineHeight:1 }}>{tier.price}</span>
-                      {tier.priceNote && <div style={{ fontSize:'0.68rem', color:T.textMuted, marginTop:3, fontStyle: tier.recommended?'normal':'normal', fontWeight: tier.recommended?700:400, color: tier.recommended?tier.color:T.textMuted }}>{tier.priceNote}</div>}
+                      {tier.priceNote && <div style={{ fontSize:'0.68rem', marginTop:3, fontWeight: tier.recommended?700:400, color: tier.recommended?tier.color:T.textMuted }}>{tier.priceNote}</div>}
                     </div>
 
                     {/* Features */}

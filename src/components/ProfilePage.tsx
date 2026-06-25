@@ -8,17 +8,17 @@ interface CompletedLab { id: string; label: string; catLabel: string; }
 interface Props {
   user: User;
   isPro: boolean;
-  hasExam: boolean;
+  hasExam?: boolean;
   completedLabs: CompletedLab[];
   totalLabs: number;
   onClose: () => void;
-  onUpgrade: () => void;
+  onUpgrade?: () => void;
   T: Record<string, string>;
 }
 
 type BugState = 'idle' | 'submitting' | 'success' | 'error';
 
-export function ProfilePage({ user, isPro, hasExam, completedLabs, totalLabs, onClose, onUpgrade, T }: Props) {
+export function ProfilePage({ user, isPro, completedLabs, totalLabs, onClose, T }: Props) {
   const [showBug, setShowBug] = useState(false);
 
   const pct        = Math.round((completedLabs.length / totalLabs) * 100);
@@ -211,86 +211,6 @@ function BugReportCard({ user, onClose, T, isDark }: { user: User; onClose: () =
   );
 }
 
-function PricingSection({ isPro, hasExam, onUpgrade, T, isDark }: { isPro: boolean; hasExam: boolean; onUpgrade: () => void; T: Record<string, string>; isDark: boolean }) {
-  const hasBundle = isPro && hasExam;
-  const bg        = isDark ? '#0d1117' : '#f6f8fa';
-  const bd        = T.border;
-
-  const TIERS = [
-    {
-      label: 'Free',
-      price: 'Included',
-      color: '#3fb950',
-      owned: true,
-      features: ['All beginner & intermediate labs', 'Subnetting tools', 'Wi-Fi & fundamentals'],
-    },
-    {
-      label: 'Labs Pro',
-      price: '£5.99 one-time',
-      color: T.accent,
-      owned: isPro,
-      features: ['OSPF, QoS, Firewall, IPsec', 'PKI, Forensics, 802.1X', 'Layer 2 Attack Mitigation', 'All future pro labs'],
-    },
-    {
-      label: 'Exam Prep',
-      price: '£8.99 one-time',
-      color: '#a855f7',
-      owned: hasExam,
-      features: ['CompTIA Network+ (N10-009)', 'CompTIA Security+ (SY0-701)', '500+ practice questions', 'Timed exam mode'],
-    },
-    {
-      label: 'Full Bundle',
-      price: '£11.99 — save £2.99',
-      color: '#d29922',
-      owned: hasBundle,
-      features: ['Everything in Labs Pro', 'Everything in Exam Prep'],
-    },
-  ];
-
-  const currentLabel = hasBundle ? 'Full Bundle' : isPro ? 'Labs Pro' : hasExam ? 'Exam Prep' : 'Free';
-
-  return (
-    <Section title="Plan & Pricing" T={T} isDark={isDark}>
-      <div style={{ marginBottom: '0.75rem', display: 'flex', alignItems: 'center', gap: 8 }}>
-        <span style={{ fontSize: '0.72rem', color: T.textMuted }}>Current plan:</span>
-        <span style={{ fontSize: '0.72rem', fontWeight: 800, padding: '2px 10px', borderRadius: 20, background: hasBundle ? '#d2992220' : isPro || hasExam ? `${T.accent}18` : '#3fb95018', color: hasBundle ? '#d29922' : isPro || hasExam ? T.accent : '#3fb950', border: `1px solid ${hasBundle ? '#d2992240' : isPro || hasExam ? `${T.accent}40` : '#3fb95040'}` }}>
-          {currentLabel}
-        </span>
-      </div>
-
-      <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
-        {TIERS.map(tier => (
-          <div key={tier.label} style={{ borderRadius: 8, border: `1px solid ${tier.owned ? tier.color + '50' : bd}`, background: tier.owned ? `${tier.color}08` : bg, padding: '0.65rem 0.75rem', opacity: tier.owned ? 1 : 0.75 }}>
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: tier.owned ? 6 : 4 }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 7 }}>
-                <span style={{ fontSize: '0.7rem', fontWeight: 800, color: tier.owned ? tier.color : T.textMuted }}>{tier.label}</span>
-                {tier.owned && <span style={{ fontSize: '0.55rem', fontWeight: 800, color: tier.color, background: `${tier.color}18`, border: `1px solid ${tier.color}40`, padding: '1px 6px', borderRadius: 10 }}>ACTIVE</span>}
-              </div>
-              <span style={{ fontSize: '0.65rem', color: tier.owned ? tier.color : T.textMuted, fontWeight: tier.owned ? 700 : 400 }}>{tier.price}</span>
-            </div>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
-              {tier.features.map(f => (
-                <div key={f} style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: '0.72rem', color: tier.owned ? T.textPrimary : T.textMuted }}>
-                  <span style={{ color: tier.owned ? tier.color : T.textMuted, fontSize: '0.6rem', flexShrink: 0 }}>{tier.owned ? '✓' : '○'}</span>
-                  {f}
-                </div>
-              ))}
-            </div>
-          </div>
-        ))}
-      </div>
-
-      {!hasBundle && (
-        <button
-          onClick={onUpgrade}
-          style={{ cursor: 'pointer', border: 'none', fontFamily: 'inherit', width: '100%', marginTop: '0.75rem', padding: '0.6rem', borderRadius: 8, background: T.accent, color: '#fff', fontWeight: 700, fontSize: '0.85rem' }}
-        >
-          {isPro || hasExam ? 'Upgrade to Full Bundle →' : 'View upgrade options →'}
-        </button>
-      )}
-    </Section>
-  );
-}
 
 function Section({ title, children, T, isDark: _isDark }: { title: string; children: ReactNode; T: Record<string, string>; isDark: boolean }) {
   return (

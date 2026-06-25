@@ -263,7 +263,6 @@ function TableTab({ T }: { T: ReturnType<typeof getLabTheme> }) {
   const match = isValidIP(destIP) ? lpm(destIP) : null;
 
   const srcColor = (s:string) => s==='C'?'#22c55e':s==='S'?'#f59e0b':'#4493f8';
-  const srcLabel = (s:string) => s==='C'?'Connected':s==='S'?'Static':'OSPF';
 
   return (
     <div style={{ animation:'ri-fade 0.2s ease-out' }}>
