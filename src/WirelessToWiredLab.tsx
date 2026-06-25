@@ -78,12 +78,12 @@ export const WirelessToWiredLab: React.FC<WirelessToWiredLabProps> = ({ isDarkMo
         <div style={{ display: 'flex', justifyContent: 'space-around', alignItems: 'center', position: 'relative', zIndex: 2, minWidth: 700 }}>
           {nodes.map((n, i) => {
             const active = n.id === selectedId;
-            const iconMap: Record<string, string> = { client: '&#128241;', ap: '&#128225;', patch: '&#128268;', switch: '&#9728;', core: '&#128421;' };
+            const iconMap: Record<string, string> = { client: '📱', ap: '📡', patch: '🔌', switch: '🔀', core: '🖥️' };
             const linkColor = i > 0 ? linkColors[i - 1] : T.accent;
             return (
               <div key={n.id} onClick={() => setSelectedId(n.id)} style={{ textAlign: 'center', width: 110, cursor: 'pointer' }}>
                 <div style={{ width: 56, height: 56, margin: '0 auto', fontSize: '1.5rem', display: 'flex', alignItems: 'center', justifyContent: 'center', borderRadius: '12px', backgroundColor: active ? T.panelBg : T.cardBg, border: `2px solid ${active ? linkColor : T.borderColor}`, boxShadow: active ? `0 0 14px ${linkColor}55` : 'none', transform: active ? 'scale(1.1)' : 'scale(1)', transition: 'all 0.15s' }}>
-                  <span dangerouslySetInnerHTML={{ __html: iconMap[n.id] }} />
+                  <span>{iconMap[n.id] ?? ''}</span>
                 </div>
                 <div style={{ fontSize: '0.72rem', fontWeight: 700, marginTop: 8, color: active ? linkColor : T.textPrimary }}>{n.shortLabel}</div>
                 <div style={{ fontSize: '0.6rem', color: T.textMuted, marginTop: 2 }}>{n.layer.split('(')[0].trim()}</div>
