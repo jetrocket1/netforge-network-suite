@@ -46,7 +46,7 @@ const STANDARDS = [
 
 // ── Channel overlap SVG for 2.4 GHz ──────────────────────────────────────────
 function ChannelOverlapSvg({ isDark }: { isDark: boolean }) {
-  const H = 80, W = 480;
+  const H = 110, W = 480;
   const highlight = new Set([1, 6, 11]);
   const channels = Array.from({ length: 11 }, (_, i) => i + 1);
   const cx = (ch: number) => ((ch - 1) / 10) * (W - 40) + 20;
@@ -118,7 +118,7 @@ function TopologySvg({ isDark }: { isDark: boolean }) {
   const apX = 230, apY = 155;
 
   return (
-    <svg viewBox="0 0 460 310" style={{ width: '100%', maxHeight: 260 }}>
+    <svg viewBox="0 0 460 310" style={{ width: '100%', height: 'auto' }}>
       {/* BSA boundary */}
       <ellipse cx={apX} cy={apY} rx={165} ry={135}
         fill={`${acc}08`} stroke={acc} strokeWidth={1.5} strokeDasharray="6 4" />
@@ -180,7 +180,7 @@ function RadioWaveSvg({ isDark }: { isDark: boolean }) {
         @keyframes wi-w4 { 0%,60%{opacity:0.1} 80%{opacity:0.6;stroke-width:2} 100%{opacity:0.1;stroke-width:1.5} }
         @keyframes wi-link { 0%,100%{stroke-dashoffset:20} 50%{stroke-dashoffset:0} }
       `}</style>
-      <svg viewBox="0 0 420 270" style={{ width: '100%', maxHeight: 220 }}>
+      <svg viewBox="0 0 420 270" style={{ width: '100%', height: 'auto' }}>
         {/* Animated data lines to devices */}
         {devices.map((d, i) => (
           <line key={i} x1={210} y1={135} x2={d.x} y2={d.y}
@@ -452,7 +452,7 @@ export const WirelessIntro: React.FC<Props> = ({ isDarkMode = true }) => {
       <div style={{ display: 'flex', gap: 6, marginBottom: '1.5rem', flexWrap: 'wrap' }}>
         {tabs.map(({ id, label }) => (
           <button key={id} onClick={() => setTab(id)}
-            style={{ padding: '0.4rem 0.9rem', borderRadius: 8, border: 'none', cursor: 'pointer', fontFamily: 'inherit', fontSize: '0.8rem', fontWeight: 600, background: tab === id ? T.accent : T.toggleBg, color: tab === id ? '#fff' : T.textMuted, transition: 'background 0.15s' }}>
+            style={{ padding: '0.4rem 0.9rem', borderRadius: 8, border: 'none', cursor: 'pointer', fontFamily: 'inherit', fontSize: '0.8rem', fontWeight: 600, background: tab === id ? T.accent : T.panelBg, color: tab === id ? '#fff' : T.textMuted, transition: 'background 0.15s' }}>
             {label}
           </button>
         ))}
