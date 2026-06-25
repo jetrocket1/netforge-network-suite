@@ -1,4 +1,5 @@
 ﻿import { useState, useEffect, useRef, Component, lazy, Suspense } from 'react';
+import type { ReactNode } from 'react';
 
 type LabProps = { isDarkMode: boolean; isPro?: boolean; hasExam?: boolean; onUpgrade?: () => void };
 
@@ -25,6 +26,7 @@ const RouterIntroLazy      = lazyLab(() => import('./RouterIntro'),          'Ro
 const VlanSuiteLazy        = lazyLab(() => import('./VlanSuite'),            'VlanSuite');
 const LinkAggLabLazy       = lazyLab(() => import('./LinkAggregationLab'),   'LinkAggregationLab');
 const StpLabLazy           = lazyLab(() => import('./StpLab'),               'StpLab');
+const WirelessIntroLazy    = lazyLab(() => import('./WirelessIntro'),        'WirelessIntro');
 const WifiAnalyzerLazy     = lazyLab(() => import('./WifiAnalyzer'),         'WifiAnalyzer');
 const WifiRoamingLazy      = lazyLab(() => import('./WifiRoamingLab'),       'WifiRoamingLab');
 const WifiBeamformingLazy  = lazyLab(() => import('./WifiBeamforming'),      'WifiBeamforming');
@@ -125,6 +127,7 @@ const REGISTRY: Category[] = [
     { id:'ipsecLab',    label:'IPsec / WireGuard VPN',    component:IpsecLabLazy,      name:'IpsecLab',         difficulty:'advanced', premium:true },
   ]},
   { catId:'wireless', catLabel:'Wireless', tools:[
+    { id:'wirelessIntro', label:'What is Wireless?',    component:WirelessIntroLazy,  name:'WirelessIntro',  difficulty:'beginner' },
     { id:'wifi',        label:'Wi-Fi Signal Analyser',  component:WifiAnalyzerLazy,   name:'WifiAnalyzer',   difficulty:'beginner' },
     { id:'roaming',     label:'Cell Overlap & Roaming', component:WifiRoamingLazy,    name:'WifiRoamingLab', difficulty:'intermediate' },
     { id:'beamforming', label:'Beamforming',            component:WifiBeamformingLazy,name:'WifiBeamforming',difficulty:'intermediate' },
@@ -158,23 +161,41 @@ const THEME = {
 const SIDEBAR_W = 232;
 const ls = { get: (k:string, fb:string) => { try { return localStorage.getItem(k) ?? fb; } catch { return fb; } }, set: (k:string,v:string) => { try { localStorage.setItem(k,v); } catch {} } };
 
-// ── Premium gate component ────────────────────────────────────────────────────
-function PremiumGate({ label, onUnlock, T }: { label:string; onUnlock:()=>void; T:typeof THEME.dark }) {
+// ── Premium teaser component ──────────────────────────────────────────────────
+function PremiumTeaser({ label, onUnlock, T, children }: { label:string; onUnlock:()=>void; T:typeof THEME.dark; children: ReactNode }) {
+  const isDark = T.appBg === '#0d1117';
   return (
-    <div style={{ display:'flex', alignItems:'center', justifyContent:'center', minHeight:400, padding:'2rem' }}>
-      <div style={{ maxWidth:420, width:'100%', textAlign:'center', backgroundColor: T.appBg === '#0d1117' ? '#161b22' : '#ffffff', border:`1px solid ${T.border}`, borderRadius:16, padding:'3rem 2rem' }}>
-        <div style={{ width:56, height:56, borderRadius:'50%', border:`2px solid ${T.accent}`, display:'flex', alignItems:'center', justifyContent:'center', margin:'0 auto 1.5rem', fontSize:'0.75rem', fontWeight:900, color:T.accent, letterSpacing:'0.05em' }}>PRO</div>
-        <h3 style={{ margin:'0 0 0.75rem', fontSize:'1.2rem', fontWeight:700, color:T.textPrimary }}>Premium Feature</h3>
-        <p style={{ margin:'0 0 0.5rem', fontSize:'0.85rem', color:T.textMuted, lineHeight:1.6 }}>
-          <strong style={{ color:T.textPrimary }}>{label}</strong> is part of Netforge Premium — advanced labs covering enterprise routing, security, and QoS.
-        </p>
-        <p style={{ margin:'0 0 2rem', fontSize:'0.8rem', color:T.textMuted, lineHeight:1.5 }}>
-          Includes all current and future advanced labs, no ads, and priority updates.
-        </p>
-        <button onClick={onUnlock} style={{ display:'block', width:'100%', padding:'0.85rem', borderRadius:8, border:'none', backgroundColor:T.accent, color:'#fff', fontWeight:700, fontSize:'0.9rem', cursor:'pointer', marginBottom:'0.75rem' }}>
-          Unlock Premium
-        </button>
-        <p style={{ margin:0, fontSize:'0.72rem', color:T.textMuted }}>Labs Pro from £5.99 · Exam Prep £8.99 · Full Bundle £11.99 · One-time payment.</p>
+    <div style={{ position:'relative' }}>
+      <style>{`
+        @keyframes pt-lock { 0%,100%{transform:translateY(0)} 50%{transform:translateY(-3px)} }
+        @keyframes pt-in { from{opacity:0;transform:translateY(12px)} to{opacity:1;transform:none} }
+      `}</style>
+      {/* Blurred preview of the actual lab */}
+      <div style={{ filter:'blur(4px)', pointerEvents:'none', userSelect:'none', maxHeight:360, overflow:'hidden', opacity:0.5 }}>
+        {children}
+      </div>
+      {/* Gradient fade-out */}
+      <div style={{ position:'absolute', top:0, left:0, right:0, height:360, background:`linear-gradient(to bottom, transparent 15%, ${T.appBg} 68%)`, pointerEvents:'none' }} />
+      {/* Upgrade card */}
+      <div style={{ position:'relative', zIndex:1, marginTop:-120, display:'flex', justifyContent:'center', padding:'0 1rem 2rem', animation:'pt-in 0.35s ease-out' }}>
+        <div style={{ background: isDark ? '#161b22' : '#ffffff', border:`1px solid ${isDark ? '#30363d' : '#d0d7de'}`, borderRadius:18, padding:'1.75rem 2rem', maxWidth:420, width:'100%', textAlign:'center', boxShadow:`0 16px 48px rgba(0,0,0,${isDark ? 0.5 : 0.12})` }}>
+          <div style={{ width:52, height:52, borderRadius:'50%', background:`linear-gradient(135deg,${T.accent}20,${T.accent}08)`, border:`2px solid ${T.accent}50`, display:'flex', alignItems:'center', justifyContent:'center', margin:'0 auto 1.25rem', animation:'pt-lock 2s ease-in-out infinite' }}>
+            <span style={{ fontSize:'1.25rem' }}>🔒</span>
+          </div>
+          <div style={{ marginBottom:'0.65rem' }}>
+            <span style={{ fontSize:'0.6rem', fontWeight:800, letterSpacing:'0.1em', padding:'3px 10px', borderRadius:20, background:'linear-gradient(135deg,#4493f8,#a855f7)', color:'#fff' }}>LABS PRO</span>
+          </div>
+          <h3 style={{ margin:'0 0 0.5rem', fontSize:'1.05rem', fontWeight:800, color:T.textPrimary, letterSpacing:'-0.01em' }}>{label}</h3>
+          <p style={{ margin:'0 0 1.25rem', fontSize:'0.8rem', color:T.textMuted, lineHeight:1.6 }}>
+            This is a premium lab covering advanced enterprise concepts. Unlock <strong style={{ color:T.textPrimary }}>all</strong> current and future Pro labs — one-time payment, permanent access.
+          </p>
+          <button onClick={onUnlock} style={{ display:'block', width:'100%', padding:'0.8rem', borderRadius:10, border:'none', background:'linear-gradient(135deg,#4493f8,#2563eb)', color:'#fff', fontWeight:700, fontSize:'0.9rem', cursor:'pointer', marginBottom:'0.6rem', fontFamily:'inherit', boxShadow:'0 4px 14px rgba(68,147,248,0.4)' }}>
+            Unlock Labs Pro — £5.99 →
+          </button>
+          <p style={{ margin:0, fontSize:'0.7rem', color:T.textMuted }}>
+            Or get the <strong style={{ color:T.textPrimary }}>Full Bundle</strong> (Labs + Exam Prep) for £11.99 · One-time · No subscription
+          </p>
+        </div>
       </div>
     </div>
   );
@@ -427,6 +448,11 @@ function AppInner() {
             <span>{isDark?'☀️':'🌙'}</span>
             <span>{isDark?'Light mode':'Dark mode'}</span>
           </button>
+          <a href="https://buymeacoffee.com/netforgens" target="_blank" rel="noopener noreferrer"
+            style={{ display:'flex', alignItems:'center', gap:'0.5rem', padding:'0.45rem 0.6rem', backgroundColor:'#ffdd00', border:'none', borderRadius:6, color:'#000', fontSize:'0.78rem', fontWeight:700, textDecoration:'none', cursor:'pointer' }}>
+            <span>☕</span>
+            <span>Buy me a coffee</span>
+          </a>
         </div>
       </aside>
 
@@ -471,7 +497,11 @@ function AppInner() {
         {/* Lab content */}
         <div style={{ flex:1, overflowY:'auto', padding:isMobile?'1rem':'1.5rem' }}>
           {isLocked ? (
-            <PremiumGate label={selectedTool.label} onUnlock={unlockPremium} T={T} />
+            <PremiumTeaser label={selectedTool.label} onUnlock={unlockPremium} T={T}>
+              <Suspense fallback={<div style={{ padding:'4rem', textAlign:'center', color:T.textMuted }}><p style={{ margin:0, fontSize:'0.85rem' }}>Loading...</p></div>}>
+                <SafeComponentBridge key={selectedTool.id} target={selectedTool.component} name={selectedTool.name} isDarkMode={isDark} isPro={false} hasExam={false} onUpgrade={unlockPremium} />
+              </Suspense>
+            </PremiumTeaser>
           ) : (
             <Suspense fallback={<div style={{ padding:'4rem', textAlign:'center', color:T.textMuted }}><p style={{ margin:0, fontSize:'0.85rem' }}>Loading...</p></div>}>
               <SafeComponentBridge key={selectedTool.id} target={selectedTool.component} name={selectedTool.name} isDarkMode={isDark} isPro={hasPremium} hasExam={ctxHasExam} onUpgrade={unlockPremium} />
