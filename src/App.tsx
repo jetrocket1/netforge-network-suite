@@ -43,6 +43,10 @@ const QosLabLazy           = lazyLab(() => import('./QosLab'),               'Qo
 const DnsLabLazy           = lazyLab(() => import('./DnsLab'),               'DnsLab');
 const TlsLabLazy           = lazyLab(() => import('./TlsLab'),               'TlsLab');
 const MacLabLazy           = lazyLab(() => import('./MacLab'),               'MacLab');
+const PkiLabLazy           = lazyLab(() => import('./PkiLab'),               'PkiLab');
+const Dot1xLabLazy         = lazyLab(() => import('./Dot1xLab'),             'Dot1xLab');
+const ForensicsLabLazy     = lazyLab(() => import('./ForensicsLab'),         'ForensicsLab');
+const IpsecLabLazy         = lazyLab(() => import('./IpsecLab'),             'IpsecLab');
 
 // ── Auth / ads / payment ──────────────────────────────────────────────────────
 import { AuthProvider, useAuth } from './contexts/AuthContext';
@@ -72,62 +76,68 @@ class SafeComponentBridge extends Component<
 }
 
 // ── Registry ──────────────────────────────────────────────────────────────────
-interface Tool { id:string; label:string; component:ReturnType<typeof lazy>; name:string; premium?:true; }
+type Difficulty = 'beginner' | 'intermediate' | 'advanced';
+interface Tool { id:string; label:string; component:ReturnType<typeof lazy>; name:string; premium?:true; difficulty?:Difficulty; }
 interface Category { catId:string; catLabel:string; tools:Tool[]; }
+const diffColor = (d?:Difficulty) => d === 'beginner' ? '#3fb950' : d === 'intermediate' ? '#d29922' : d === 'advanced' ? '#f85149' : 'transparent';
 
 const REGISTRY: Category[] = [
   { catId:'fundamentals', catLabel:'Fundamentals', tools:[
-    { id:'osiModel',        label:'The OSI 7-Layer Model',       component:OsiModelLazy,        name:'OsiModel' },
-    { id:'topologyLab',     label:'Network Topologies',          component:TopologyLabLazy,     name:'TopologyLab' },
-    { id:'csmaLab',         label:'Access Control (CSMA/CD)',    component:CsmaLabLazy,         name:'CsmaLab' },
-    { id:'cableLab',        label:'Cables & Hardware',           component:CableLabLazy,        name:'CableLab' },
-    { id:'arpLab',          label:'Address Resolution (ARP)',    component:ArpLabLazy,          name:'ArpLab' },
-    { id:'netServices',     label:'Network Services (DHCP/DNS)', component:NetServicesLabLazy,  name:'NetServicesLab' },
-    { id:'dnsLab',          label:'DNS Resolution Visualiser',   component:DnsLabLazy,          name:'DnsLab' },
-    { id:'headerInspector', label:'Packets vs. Frames',          component:HeaderInspectorLazy, name:'HeaderInspector' },
-    { id:'protocolMapper',  label:'Protocol Data Units',         component:ProtocolMapperLazy,  name:'ProtocolMapper' },
-    { id:'icmpLab',         label:'How Ping Works (ICMP)',       component:IcmpLabLazy,         name:'IcmpLab' },
-    { id:'tcpLab',          label:'TCP Connection Lifecycle',    component:TcpLabLazy,          name:'TcpLab' },
-    { id:'wirelessToWired', label:'Wireless-to-Wired Path',      component:WirelessToWiredLazy, name:'WirelessToWiredLab' },
+    { id:'osiModel',        label:'The OSI 7-Layer Model',       component:OsiModelLazy,        name:'OsiModel',           difficulty:'beginner' },
+    { id:'topologyLab',     label:'Network Topologies',          component:TopologyLabLazy,     name:'TopologyLab',        difficulty:'beginner' },
+    { id:'csmaLab',         label:'Access Control (CSMA/CD)',    component:CsmaLabLazy,         name:'CsmaLab',            difficulty:'beginner' },
+    { id:'cableLab',        label:'Cables & Hardware',           component:CableLabLazy,        name:'CableLab',           difficulty:'beginner' },
+    { id:'arpLab',          label:'Address Resolution (ARP)',    component:ArpLabLazy,          name:'ArpLab',             difficulty:'beginner' },
+    { id:'netServices',     label:'Network Services (DHCP/DNS)', component:NetServicesLabLazy,  name:'NetServicesLab',     difficulty:'beginner' },
+    { id:'dnsLab',          label:'DNS Resolution Visualiser',   component:DnsLabLazy,          name:'DnsLab',             difficulty:'intermediate' },
+    { id:'headerInspector', label:'Packets vs. Frames',          component:HeaderInspectorLazy, name:'HeaderInspector',    difficulty:'beginner' },
+    { id:'protocolMapper',  label:'Protocol Data Units',         component:ProtocolMapperLazy,  name:'ProtocolMapper',     difficulty:'beginner' },
+    { id:'icmpLab',         label:'How Ping Works (ICMP)',       component:IcmpLabLazy,         name:'IcmpLab',            difficulty:'beginner' },
+    { id:'tcpLab',          label:'TCP Connection Lifecycle',    component:TcpLabLazy,          name:'TcpLab',             difficulty:'intermediate' },
+    { id:'wirelessToWired', label:'Wireless-to-Wired Path',      component:WirelessToWiredLazy, name:'WirelessToWiredLab', difficulty:'intermediate' },
   ]},
   { catId:'switching', catLabel:'Switching', tools:[
-    { id:'vlanMap',         label:'VLAN Configuration',          component:VlanSuiteLazy,     name:'VlanSuite' },
-    { id:'linkAggregation', label:'Link Aggregation',            component:LinkAggLabLazy,    name:'LinkAggregationLab' },
-    { id:'stpLab',          label:'Spanning Tree Protocol',      component:StpLabLazy,        name:'StpLab' },
-    { id:'macLab',          label:'MAC Learning & Forwarding',   component:MacLabLazy,        name:'MacLab' },
+    { id:'vlanMap',         label:'VLAN Configuration',          component:VlanSuiteLazy,     name:'VlanSuite',           difficulty:'intermediate' },
+    { id:'linkAggregation', label:'Link Aggregation',            component:LinkAggLabLazy,    name:'LinkAggregationLab',  difficulty:'intermediate' },
+    { id:'stpLab',          label:'Spanning Tree Protocol',      component:StpLabLazy,        name:'StpLab',              difficulty:'intermediate' },
+    { id:'macLab',          label:'MAC Learning & Forwarding',   component:MacLabLazy,        name:'MacLab',              difficulty:'beginner' },
+    { id:'dot1xLab',        label:'802.1X Network Access Control', component:Dot1xLabLazy,    name:'Dot1xLab',            difficulty:'advanced', premium:true },
   ]},
   { catId:'subnetting', catLabel:'Subnetting', tools:[
-    { id:'calculator', label:'IP Subnet Calculator',   component:SubnetCalcLazy,    name:'SubnetCalculator' },
-    { id:'splitter',   label:'VLSM Planner',           component:SubnetSplitterLazy,name:'SubnetSplitter' },
-    { id:'ipv6Suite',  label:'IPv6 Address Basics',    component:Ipv6SuiteLazy,     name:'Ipv6Suite' },
-    { id:'cheatsheet', label:'Subnetting Quick Sheet', component:SubnetCheatLazy,   name:'SubnetCheatSheet' },
+    { id:'calculator', label:'IP Subnet Calculator',   component:SubnetCalcLazy,    name:'SubnetCalculator', difficulty:'beginner' },
+    { id:'splitter',   label:'VLSM Planner',           component:SubnetSplitterLazy,name:'SubnetSplitter',   difficulty:'intermediate' },
+    { id:'ipv6Suite',  label:'IPv6 Address Basics',    component:Ipv6SuiteLazy,     name:'Ipv6Suite',        difficulty:'intermediate' },
+    { id:'cheatsheet', label:'Subnetting Quick Sheet', component:SubnetCheatLazy,   name:'SubnetCheatSheet', difficulty:'beginner' },
   ]},
   { catId:'routing', catLabel:'Routing', tools:[
-    { id:'lpmSim',     label:'Longest Prefix Match',     component:LpmSimLazy,        name:'LpmSimulator' },
-    { id:'gatewayLab', label:'Gateway & Backup Routes',  component:GatewayLabLazy,    name:'GatewayLab' },
-    { id:'dynamicLab', label:'Routing Protocols Matrix', component:DynamicRoutingLazy,name:'DynamicRoutingLab' },
-    { id:'natLab',     label:'NAT / PAT Simulator',      component:NatLabLazy,        name:'NatLab' },
-    { id:'ospfLab',    label:'OSPF Visualiser',          component:OspfLabLazy,       name:'OspfLab',  premium:true },
-    { id:'qosLab',     label:'QoS Traffic Management',   component:QosLabLazy,        name:'QosLab',   premium:true },
+    { id:'lpmSim',     label:'Longest Prefix Match',     component:LpmSimLazy,        name:'LpmSimulator',     difficulty:'intermediate' },
+    { id:'gatewayLab', label:'Gateway & Backup Routes',  component:GatewayLabLazy,    name:'GatewayLab',       difficulty:'beginner' },
+    { id:'dynamicLab', label:'Routing Protocols Matrix', component:DynamicRoutingLazy,name:'DynamicRoutingLab',difficulty:'intermediate' },
+    { id:'natLab',     label:'NAT / PAT Simulator',      component:NatLabLazy,        name:'NatLab',           difficulty:'intermediate' },
+    { id:'ospfLab',    label:'OSPF Visualiser',          component:OspfLabLazy,       name:'OspfLab',          difficulty:'advanced', premium:true },
+    { id:'qosLab',     label:'QoS Traffic Management',   component:QosLabLazy,        name:'QosLab',           difficulty:'advanced', premium:true },
+    { id:'ipsecLab',   label:'IPsec / WireGuard VPN',    component:IpsecLabLazy,      name:'IpsecLab',         difficulty:'advanced', premium:true },
   ]},
   { catId:'wireless', catLabel:'Wireless', tools:[
-    { id:'wifi',        label:'Wi-Fi Signal Analyser',  component:WifiAnalyzerLazy,   name:'WifiAnalyzer' },
-    { id:'roaming',     label:'Cell Overlap & Roaming', component:WifiRoamingLazy,    name:'WifiRoamingLab' },
-    { id:'beamforming', label:'Beamforming',            component:WifiBeamformingLazy,name:'WifiBeamforming' },
-    { id:'security',    label:'Wi-Fi Security (WPA)',   component:WifiSecurityLazy,   name:'WifiSecurity' },
-    { id:'standards',   label:'802.11 Standards',       component:WifiStandardsLazy,  name:'WifiStandards' },
+    { id:'wifi',        label:'Wi-Fi Signal Analyser',  component:WifiAnalyzerLazy,   name:'WifiAnalyzer',   difficulty:'beginner' },
+    { id:'roaming',     label:'Cell Overlap & Roaming', component:WifiRoamingLazy,    name:'WifiRoamingLab', difficulty:'intermediate' },
+    { id:'beamforming', label:'Beamforming',            component:WifiBeamformingLazy,name:'WifiBeamforming',difficulty:'intermediate' },
+    { id:'security',    label:'Wi-Fi Security (WPA)',   component:WifiSecurityLazy,   name:'WifiSecurity',   difficulty:'intermediate' },
+    { id:'standards',   label:'802.11 Standards',       component:WifiStandardsLazy,  name:'WifiStandards',  difficulty:'beginner' },
   ]},
   { catId:'security', catLabel:'Security', tools:[
-    { id:'layer2',      label:'Layer 2 Attack Mitigation', component:Layer2SecurityLazy, name:'Layer2SecurityLab', premium:true },
-    { id:'aclLab',      label:'ACL Rules Simulator',       component:AclLabLazy,         name:'AclLab' },
-    { id:'tlsLab',      label:'TLS Handshake Visualiser',  component:TlsLabLazy,         name:'TlsLab' },
-    { id:'firewallLab', label:'Firewall Zone Policy',       component:FirewallLabLazy,    name:'FirewallLab', premium:true },
+    { id:'layer2',       label:'Layer 2 Attack Mitigation',   component:Layer2SecurityLazy, name:'Layer2SecurityLab', difficulty:'advanced',     premium:true },
+    { id:'aclLab',       label:'ACL Rules Simulator',         component:AclLabLazy,         name:'AclLab',            difficulty:'intermediate' },
+    { id:'tlsLab',       label:'TLS Handshake Visualiser',    component:TlsLabLazy,         name:'TlsLab',            difficulty:'intermediate' },
+    { id:'firewallLab',  label:'Firewall Zone Policy',        component:FirewallLabLazy,    name:'FirewallLab',       difficulty:'advanced',     premium:true },
+    { id:'pkiLab',       label:'PKI & Certificate Chain',     component:PkiLabLazy,         name:'PkiLab',            difficulty:'advanced',     premium:true },
+    { id:'forensicsLab', label:'Network Forensics',           component:ForensicsLabLazy,   name:'ForensicsLab',      difficulty:'advanced',     premium:true },
   ]},
   { catId:'powershell', catLabel:'PowerShell', tools:[
-    { id:'cheatsheet', label:'Diagnostics Command Matrix', component:PowerShellLazy, name:'PowerShellCheatsheet' },
+    { id:'cheatsheet', label:'Diagnostics Command Matrix', component:PowerShellLazy, name:'PowerShellCheatsheet', difficulty:'beginner' },
   ]},
   { catId:'training', catLabel:'Training', tools:[
-    { id:'practice', label:'Exam Practice Sandbox', component:PracticeStationLazy, name:'PracticeStation' },
+    { id:'practice', label:'Exam Practice Sandbox', component:PracticeStationLazy, name:'PracticeStation', difficulty:'intermediate' },
   ]},
 ];
 
@@ -178,6 +188,9 @@ function AppInner() {
   const [showUpgrade,     setShowUpgrade]     = useState(false);
   const [showProSuccess,  setShowProSuccess]  = useState(false);
   const [showProfile,     setShowProfile]     = useState(false);
+  const [showSignIn,      setShowSignIn]      = useState(false);
+  const [favourites,      setFavourites]      = useState<Set<string>>(() => { try { const s=localStorage.getItem('netforge-favs'); return s?new Set(JSON.parse(s) as string[]):new Set(); } catch { return new Set(); } });
+  const [recentTools,     setRecentTools]     = useState<string[]>(() => { try { const s=localStorage.getItem('netforge-recent'); return s?JSON.parse(s) as string[]:[];  } catch { return []; } });
   const searchRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
@@ -195,6 +208,8 @@ function AppInner() {
   useEffect(() => { try { localStorage.setItem('netforge-progress',JSON.stringify([...completed])); } catch {} },[completed]);
   useEffect(() => { ls.set('netforge-theme', isDark?'dark':'light'); },[isDark]);
   useEffect(() => { ls.set('netforge-sidebar-collapsed', collapsed?'true':'false'); },[collapsed]);
+  useEffect(() => { try { localStorage.setItem('netforge-favs',   JSON.stringify([...favourites]));  } catch {} },[favourites]);
+  useEffect(() => { try { localStorage.setItem('netforge-recent', JSON.stringify(recentTools));       } catch {} },[recentTools]);
 
   useEffect(() => {
     const cat=REGISTRY.find(c=>c.catId===activeCat);
@@ -206,11 +221,14 @@ function AppInner() {
     window.history.pushState({},'',url.toString());
   },[activeCat,activeTool]);
 
+  const toggleFavourite = (id:string) => setFavourites(prev => { const n=new Set(prev); n.has(id)?n.delete(id):n.add(id); return n; });
+
   const selectTool = (toolId:string, catId?:string) => {
     if(catId) setActiveCat(catId);
     setActiveTool(toolId);
     setSearch('');
     if(isMobile) setSidebarOpen(false);
+    setRecentTools(prev => [toolId, ...prev.filter(id => id !== toolId)].slice(0, 3));
   };
 
   const selectCat = (catId:string) => {
@@ -219,7 +237,7 @@ function AppInner() {
   };
 
   const toggleDone = (id:string) => setCompleted(prev=>{ const n=new Set(prev); n.has(id)?n.delete(id):n.add(id); return n; });
-  const unlockPremium = () => { if (!user) { void signInWithGoogle(); return; } setShowUpgrade(true); };
+  const unlockPremium = () => { if (!user) { setShowSignIn(true); return; } setShowUpgrade(true); };
 
   const T = isDark ? THEME.dark : THEME.light;
   const hasPremium = profile?.is_pro ?? false;
@@ -311,38 +329,79 @@ function AppInner() {
               }
             </div>
           ) : (
-            /* Normal accordion nav */
-            REGISTRY.map(cat => {
-              const isOpen = activeCat===cat.catId;
-              const catDone = cat.tools.filter(t=>completed.has(t.id)).length;
-              return (
-                <div key={cat.catId} style={{ marginBottom:'0.2rem' }}>
-                  <button onClick={()=>selectCat(cat.catId)}
-                    style={{ ...btnBase, width:'100%', textAlign:'left', display:'flex', justifyContent:'space-between', alignItems:'center', padding:'0.35rem 0.875rem', color:isOpen?T.textPrimary:T.textMuted, fontSize:'0.68rem', fontWeight:700, letterSpacing:'0.07em', textTransform:'uppercase' }}>
-                    <span>{cat.catLabel}</span>
-                    <span style={{ display:'flex', alignItems:'center', gap:5 }}>
-                      {catDone>0 && <span style={{ fontSize:'0.6rem', color:catDone===cat.tools.length?'#3fb950':T.accent, fontWeight:700 }}>{catDone}/{cat.tools.length}</span>}
-                      <span style={{ fontSize:'0.5rem', opacity:0.5 }}>{isOpen?'▲':'▼'}</span>
-                    </span>
-                  </button>
-                  {isOpen && cat.tools.map(tool => {
+            <>
+              {/* Favourites */}
+              {hasPremium && favourites.size > 0 && (
+                <div style={{ marginBottom:'0.25rem' }}>
+                  <div style={{ padding:'4px 14px 4px', fontSize:'0.6rem', fontWeight:700, color:'#d29922', textTransform:'uppercase', letterSpacing:'0.07em' }}>★ Favourites</div>
+                  {ALL_TOOLS.filter(t=>favourites.has(t.id)).map(tool => {
                     const isActive = activeTool===tool.id;
-                    const toolDone = completed.has(tool.id);
-                    const isLock = !!tool.premium && !hasPremium;
                     return (
-                      <button key={tool.id} onClick={()=>selectTool(tool.id)}
-                        style={{ ...btnBase, width:'100%', textAlign:'left', padding:'0.38rem 0.6rem 0.38rem 1.1rem', borderLeft:`2px solid ${isActive?T.accent:'transparent'}`, backgroundColor:isActive?T.activeBg:'transparent', color:isActive?T.activeText:T.navText, fontSize:'0.8rem', fontWeight:isActive?600:400, lineHeight:1.45, display:'flex', alignItems:'center', justifyContent:'space-between', gap:6 }}>
-                        <span style={{ flexGrow:1 }}>{tool.label}</span>
-                        <span style={{ display:'flex', alignItems:'center', gap:4, flexShrink:0 }}>
-                          {isLock && <span style={{ fontSize:'0.55rem', fontWeight:700, color:T.accent, backgroundColor:`${T.accent}18`, padding:'1px 5px', borderRadius:6 }}>PRO</span>}
-                          {toolDone && <span style={{ width:14, height:14, borderRadius:'50%', backgroundColor:'#3fb950', display:'flex', alignItems:'center', justifyContent:'center', fontSize:'8px', color:'#fff', fontWeight:900, lineHeight:1 }}>✓</span>}
-                        </span>
+                      <button key={tool.id} onClick={()=>selectTool(tool.id,tool.catId)}
+                        style={{ ...btnBase, width:'100%', textAlign:'left', padding:'0.32rem 0.6rem 0.32rem 1rem', borderLeft:`2px solid ${isActive?T.accent:'transparent'}`, backgroundColor:isActive?T.activeBg:'transparent', color:isActive?T.activeText:T.navText, fontSize:'0.78rem', lineHeight:1.4, display:'flex', alignItems:'center', justifyContent:'space-between', gap:6 }}>
+                        <span style={{ flexGrow:1, overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>{tool.label}</span>
+                        <span style={{ color:'#d29922', fontSize:'0.7rem', flexShrink:0 }}>★</span>
                       </button>
                     );
                   })}
+                  <div style={{ height:1, background:T.border, margin:'4px 14px 2px' }} />
                 </div>
-              );
-            })
+              )}
+              {/* Recent */}
+              {recentTools.length > 0 && (
+                <div style={{ marginBottom:'0.25rem' }}>
+                  <div style={{ padding:'4px 14px 4px', fontSize:'0.6rem', fontWeight:700, color:T.textMuted, textTransform:'uppercase', letterSpacing:'0.07em' }}>Recent</div>
+                  {recentTools.map(id => {
+                    const tool = ALL_TOOLS.find(t=>t.id===id);
+                    if (!tool) return null;
+                    const isActive = activeTool===tool.id;
+                    return (
+                      <button key={id} onClick={()=>selectTool(id,tool.catId)}
+                        style={{ ...btnBase, width:'100%', textAlign:'left', padding:'0.32rem 0.6rem 0.32rem 1rem', borderLeft:`2px solid ${isActive?T.accent:'transparent'}`, backgroundColor:isActive?T.activeBg:'transparent', color:isActive?T.activeText:T.navText, fontSize:'0.78rem', lineHeight:1.4, display:'flex', alignItems:'center', justifyContent:'space-between', gap:6 }}>
+                        <span style={{ flexGrow:1, overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>{tool.label}</span>
+                        <span style={{ fontSize:'0.6rem', color:T.textMuted, flexShrink:0 }}>↵</span>
+                      </button>
+                    );
+                  })}
+                  <div style={{ height:1, background:T.border, margin:'4px 14px 2px' }} />
+                </div>
+              )}
+              {/* Accordion nav */}
+              {REGISTRY.map(cat => {
+                const isOpen = activeCat===cat.catId;
+                const catDone = cat.tools.filter(t=>completed.has(t.id)).length;
+                return (
+                  <div key={cat.catId} style={{ marginBottom:'0.2rem' }}>
+                    <button onClick={()=>selectCat(cat.catId)}
+                      style={{ ...btnBase, width:'100%', textAlign:'left', display:'flex', justifyContent:'space-between', alignItems:'center', padding:'0.35rem 0.875rem', color:isOpen?T.textPrimary:T.textMuted, fontSize:'0.68rem', fontWeight:700, letterSpacing:'0.07em', textTransform:'uppercase' }}>
+                      <span>{cat.catLabel}</span>
+                      <span style={{ display:'flex', alignItems:'center', gap:5 }}>
+                        {catDone>0 && <span style={{ fontSize:'0.6rem', color:catDone===cat.tools.length?'#3fb950':T.accent, fontWeight:700 }}>{catDone}/{cat.tools.length}</span>}
+                        <span style={{ fontSize:'0.5rem', opacity:0.5 }}>{isOpen?'▲':'▼'}</span>
+                      </span>
+                    </button>
+                    {isOpen && cat.tools.map(tool => {
+                      const isActive = activeTool===tool.id;
+                      const toolDone = completed.has(tool.id);
+                      const isLock   = !!tool.premium && !hasPremium;
+                      const dc       = diffColor(tool.difficulty);
+                      return (
+                        <button key={tool.id} onClick={()=>selectTool(tool.id)}
+                          style={{ ...btnBase, width:'100%', textAlign:'left', padding:'0.38rem 0.6rem 0.38rem 1.1rem', borderLeft:`2px solid ${isActive?T.accent:'transparent'}`, backgroundColor:isActive?T.activeBg:'transparent', color:isActive?T.activeText:T.navText, fontSize:'0.8rem', fontWeight:isActive?600:400, lineHeight:1.45, display:'flex', alignItems:'center', justifyContent:'space-between', gap:6 }}>
+                          <span style={{ flexGrow:1 }}>{tool.label}</span>
+                          <span style={{ display:'flex', alignItems:'center', gap:4, flexShrink:0 }}>
+                            {tool.difficulty && hasPremium && <span style={{ fontSize:'0.5rem', fontWeight:800, color:dc, backgroundColor:`${dc}18`, padding:'1px 4px', borderRadius:4 }}>{tool.difficulty[0].toUpperCase()}</span>}
+                            {isLock && <span style={{ fontSize:'0.55rem', fontWeight:700, color:T.accent, backgroundColor:`${T.accent}18`, padding:'1px 5px', borderRadius:6 }}>PRO</span>}
+                            {toolDone && <span style={{ width:14, height:14, borderRadius:'50%', backgroundColor:'#3fb950', display:'flex', alignItems:'center', justifyContent:'center', fontSize:'8px', color:'#fff', fontWeight:900, lineHeight:1 }}>✓</span>}
+                            {hasPremium && favourites.has(tool.id) && <span style={{ fontSize:'0.65rem', color:'#d29922', lineHeight:1 }}>★</span>}
+                          </span>
+                        </button>
+                      );
+                    })}
+                  </div>
+                );
+              })}
+            </>
           )}
         </nav>
 
@@ -388,6 +447,14 @@ function AppInner() {
                 <span style={{ display:isMobile?'none':'inline' }}>{isDone?'Completed':'Mark complete'}</span>
               </button>
           }
+          {hasPremium && (
+            <button
+              onClick={() => toggleFavourite(selectedTool.id)}
+              title={favourites.has(selectedTool.id) ? 'Remove from favourites' : 'Add to favourites'}
+              style={{ ...btnBase, display:'flex', alignItems:'center', justifyContent:'center', flexShrink:0, width:32, height:32, border:`1px solid ${favourites.has(selectedTool.id)?'#d29922':T.border}`, borderRadius:5, fontSize:'1rem', backgroundColor:favourites.has(selectedTool.id)?(isDark?'rgba(210,153,34,0.12)':'rgba(210,153,34,0.08)'):'transparent', color:favourites.has(selectedTool.id)?'#d29922':T.textMuted }}>
+              {favourites.has(selectedTool.id) ? '★' : '☆'}
+            </button>
+          )}
           <AuthButton T={T} onUpgrade={unlockPremium} onProfile={() => setShowProfile(true)} />
         </div>
 
@@ -406,6 +473,25 @@ function AppInner() {
     {showUpgrade    && <UpgradeModal    onClose={() => setShowUpgrade(false)}    T={T} />}
     {showProSuccess && <ProSuccessModal onClose={() => setShowProSuccess(false)} T={T} />}
     {showProfile && user && <ProfilePage user={user} isPro={hasPremium} completedLabs={completedLabs} totalLabs={totalLabs} onClose={() => setShowProfile(false)} T={T} />}
+    {showSignIn && (
+      <div style={{ position:'fixed', inset:0, background:'rgba(0,0,0,0.65)', display:'flex', alignItems:'center', justifyContent:'center', zIndex:9999 }} onClick={() => setShowSignIn(false)}>
+        <div style={{ background: isDark?'#161b22':'#ffffff', border:`1px solid ${T.border}`, borderRadius:14, padding:'2rem', maxWidth:360, width:'90%', textAlign:'center' }} onClick={e => e.stopPropagation()}>
+          <div style={{ fontSize:'2rem', marginBottom:'0.75rem' }}>🔒</div>
+          <h2 style={{ margin:'0 0 0.5rem', color:T.textPrimary, fontSize:'1.1rem', fontWeight:700 }}>Sign in to continue</h2>
+          <p style={{ color:T.textMuted, fontSize:'0.83rem', margin:'0 0 1.5rem', lineHeight:1.6 }}>
+            You need a free account to unlock NetForge Pro. Sign in with Google, then complete your purchase.
+          </p>
+          <button
+            onClick={() => { setShowSignIn(false); void signInWithGoogle(); }}
+            style={{ display:'flex', alignItems:'center', justifyContent:'center', gap:8, width:'100%', padding:'0.7rem', borderRadius:8, border:`1px solid ${T.border}`, background:T.toggleBg, color:T.textPrimary, fontWeight:700, fontSize:'0.88rem', cursor:'pointer', fontFamily:'inherit' }}
+          >
+            <svg width="16" height="16" viewBox="0 0 24 24"><path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/><path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/><path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l3.66-2.84z"/><path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/></svg>
+            Continue with Google
+          </button>
+          <button onClick={() => setShowSignIn(false)} style={{ marginTop:'0.75rem', background:'none', border:'none', cursor:'pointer', color:T.textMuted, fontSize:'0.78rem', textDecoration:'underline', fontFamily:'inherit' }}>Cancel</button>
+        </div>
+      </div>
+    )}
     </>
   );
 }
