@@ -3,7 +3,7 @@ import { getLabTheme } from './labTheme';
 import { LabEduPanel, type EduCard } from './LabEduPanel';
 
 /* ─── Types ─────────────────────────────────────────────────────── */
-type TabId    = 'switch' | 'packet' | 'frame' | 'cli' | 'roas';
+type TabId    = 'switch' | 'packet' | 'frame' | 'cli' | 'roas' | 'topo';
 type PortMode = 'access' | 'trunk';
 interface Vlan { id: number; name: string; color: string; }
 interface Port { id: number; mode: PortMode; vlanId: number; nativeVlan: number; allowedVlans: number[]; label: string; }
@@ -118,6 +118,224 @@ interface GigabitEthernet0/0.20
   { type:'gotcha', title:'Allowed List Doesn\'t Create VLANs', body:'"switchport trunk allowed vlan 10,20" permits those VLANs on the trunk — but if VLAN 10 doesn\'t exist in the VLAN database, its traffic is still dropped silently. Always create VLANs with "vlan X / name Y" first, then assign them to ports. Check with "show vlan brief".' },
   { type:'realworld', title:'Voice VLAN: Two VLANs, One Cable', body:'IP phones have a built-in 3-port switch. Phone connects to wall jack; PC connects to phone. "switchport voice vlan 20" tells the phone to tag its own traffic VLAN 20 and pass PC traffic untagged (VLAN 10). One cable, two logically separated VLANs with different QoS policies — standard in every enterprise office with 100+ desk phones.' },
 ];
+
+/* ─── VLAN Topology SVG ─────────────────────────────────────────── */
+const TOPO_SW_CX = 430, TOPO_SW_CY = 240, TOPO_SW_HW = 85, TOPO_SW_HH = 48;
+
+function topoSwEdge(zx: number, zy: number) {
+  const dx = zx - TOPO_SW_CX, dy = zy - TOPO_SW_CY;
+  let t = Infinity;
+  if (dx >  0.01) { const tx = TOPO_SW_HW / dx;  if (Math.abs(dy * tx) <= TOPO_SW_HH + 1) t = Math.min(t, tx); }
+  if (dx < -0.01) { const tx = TOPO_SW_HW / -dx; if (Math.abs(dy * tx) <= TOPO_SW_HH + 1) t = Math.min(t, tx); }
+  if (dy >  0.01) { const ty = TOPO_SW_HH / dy;  if (Math.abs(dx * ty) <= TOPO_SW_HW + 1) t = Math.min(t, ty); }
+  if (dy < -0.01) { const ty = TOPO_SW_HH / -dy; if (Math.abs(dx * ty) <= TOPO_SW_HW + 1) t = Math.min(t, ty); }
+  if (!isFinite(t)) return { x: TOPO_SW_CX, y: TOPO_SW_CY };
+  return { x: TOPO_SW_CX + dx * t, y: TOPO_SW_CY + dy * t };
+}
+
+function topoDeviceOffsets(count: number) {
+  const n = Math.min(count, 4);
+  if (n === 1) return [{ dx:  0, dy:  0 }];
+  if (n === 2) return [{ dx:-26, dy:  0 }, { dx: 26, dy:  0 }];
+  if (n === 3) return [{ dx:-30, dy:  8 }, { dx:  0, dy:-16 }, { dx: 30, dy:  8 }];
+  return      [{ dx:-30, dy:-12 }, { dx: 30, dy:-12 }, { dx:-30, dy: 18 }, { dx: 30, dy: 18 }];
+}
+
+function topoVlanIcon(v: Vlan) {
+  const n = v.name.toLowerCase();
+  if (n.includes('voip') || n.includes('voice'))            return '📞';
+  if (n.includes('guest') || n.includes('iot'))             return '📱';
+  if (n.includes('mgmt') || n.includes('manage') || n.includes('ment')) return '🖥️';
+  if (n.includes('server') || n.includes('dmz'))            return '🗄️';
+  return '💻';
+}
+
+const TOPO_ZONES = [
+  { x:135, y:125 },
+  { x:695, y:125 },
+  { x:145, y:375 },
+  { x:695, y:375 },
+  { x:420, y:82  },
+];
+const TOPO_ROUTER_X = 812, TOPO_ROUTER_Y = 240;
+const ZRX = 80, ZRY = 65;
+
+interface TopoSvgProps { vlans: Vlan[]; ports: Port[]; isDarkMode: boolean; T: ReturnType<typeof getLabTheme>; }
+
+function TopoSvg({ vlans, ports, isDarkMode, T }: TopoSvgProps) {
+  const isDark = isDarkMode;
+  const bgCol   = isDark ? '#0d1117' : '#f6f8fa';
+  const gridCol = isDark ? '#1c2128' : '#e8ecef';
+  const swBg    = isDark ? '#161b22' : '#ffffff';
+  const swBd    = isDark ? '#30363d' : '#d0d7de';
+  const textC   = isDark ? '#e6edf3' : '#1f2328';
+  const mutedC  = isDark ? '#6e7681' : '#8c959f';
+
+  const vlanGroups = vlans
+    .filter(v => v.id !== 1)
+    .map(v => ({ ...v, apCount: ports.filter(p => p.mode === 'access' && p.vlanId === v.id).length }))
+    .filter(g => g.apCount > 0);
+
+  const trunkCount = ports.filter(p => p.mode === 'trunk').length;
+  const trunkVlans = vlans.filter(v => v.id !== 1);
+
+  return (
+    <div style={{ background:T.panelBg, border:`1px solid ${T.borderColor}`, borderRadius:14, overflow:'hidden' }}>
+      <svg viewBox="0 0 860 480" style={{ width:'100%', height:'auto', display:'block' }}>
+        <defs>
+          <linearGradient id="topoSwGrad" x1="0%" y1="0%" x2="100%" y2="0%">
+            <stop offset="0%"   stopColor="#4493f8" />
+            <stop offset="45%"  stopColor="#3fb950" />
+            <stop offset="100%" stopColor="#a855f7" />
+          </linearGradient>
+        </defs>
+
+        {/* Background */}
+        <rect width={860} height={480} fill={bgCol} />
+        {Array.from({ length: 16 * 29 }, (_, k) => {
+          const xi = k % 29, yi = Math.floor(k / 29);
+          return <circle key={k} cx={xi * 30 + 15} cy={yi * 30 + 15} r={1} fill={gridCol} />;
+        })}
+
+        {/* Trunk lines to router */}
+        {trunkCount > 0 && (() => {
+          const edge = topoSwEdge(TOPO_ROUTER_X, TOPO_ROUTER_Y);
+          const totalSpread = (trunkVlans.length - 1) * 5;
+          const midX = (edge.x + TOPO_ROUTER_X - 28) / 2;
+          return (
+            <g>
+              {trunkVlans.map((v, i) => (
+                <line key={v.id}
+                  x1={edge.x} y1={TOPO_SW_CY - totalSpread / 2 + i * 5}
+                  x2={TOPO_ROUTER_X - 28} y2={TOPO_SW_CY - totalSpread / 2 + i * 5}
+                  stroke={v.color} strokeWidth={2.5} strokeOpacity={0.75} />
+              ))}
+              <text x={midX} y={TOPO_SW_CY - totalSpread / 2 - 12}
+                textAnchor="middle" fontSize={8.5} fontWeight={700} fill={mutedC}>802.1Q trunk</text>
+              <text x={midX} y={TOPO_SW_CY - totalSpread / 2 - 2}
+                textAnchor="middle" fontSize={7.5} fill={mutedC}>
+                {trunkCount} port{trunkCount !== 1 ? 's' : ''}
+              </text>
+            </g>
+          );
+        })()}
+
+        {/* VLAN broadcast domain zones */}
+        {vlanGroups.map((g, i) => {
+          if (i >= TOPO_ZONES.length) return null;
+          const zone = TOPO_ZONES[i];
+          const edge = topoSwEdge(zone.x, zone.y);
+          const mx = (edge.x + zone.x) / 2;
+          const my = (edge.y + zone.y) / 2 - 20;
+          const offsets = topoDeviceOffsets(g.apCount);
+          const icon = topoVlanIcon(g);
+          return (
+            <g key={g.id}>
+              {/* Connector from switch edge to zone */}
+              <path
+                d={`M ${edge.x.toFixed(1)} ${edge.y.toFixed(1)} Q ${mx.toFixed(1)} ${my.toFixed(1)} ${zone.x} ${zone.y}`}
+                fill="none" stroke={g.color} strokeWidth={2} strokeOpacity={0.5} />
+
+              {/* Broadcast domain ellipse */}
+              <ellipse cx={zone.x} cy={zone.y} rx={ZRX} ry={ZRY}
+                fill={g.color} fillOpacity={0.07}
+                stroke={g.color} strokeWidth={1.5} strokeDasharray="7 4" strokeOpacity={0.65} />
+
+              {/* Port count badge inside top of zone */}
+              <rect x={zone.x - 24} y={zone.y - ZRY + 8} width={48} height={18} rx={9} fill={g.color} />
+              <text x={zone.x} y={zone.y - ZRY + 21}
+                textAnchor="middle" fontSize={8.5} fontWeight={800} fill="#fff">
+                {g.apCount} port{g.apCount !== 1 ? 's' : ''}
+              </text>
+
+              {/* Device icons */}
+              {offsets.map((off, di) => (
+                <g key={di} transform={`translate(${zone.x + off.dx},${zone.y + 10 + off.dy})`}>
+                  <circle cx={0} cy={0} r={16}
+                    fill={isDark ? '#1c2128' : '#ffffff'}
+                    stroke={g.color} strokeWidth={1.5} />
+                  <text x={0} y={6} textAnchor="middle" fontSize={12}>{icon}</text>
+                </g>
+              ))}
+
+              {/* VLAN labels below zone */}
+              <text x={zone.x} y={zone.y + ZRY + 15}
+                textAnchor="middle" fontSize={9.5} fontWeight={800} fill={g.color}>
+                VLAN {g.id}
+              </text>
+              <text x={zone.x} y={zone.y + ZRY + 27}
+                textAnchor="middle" fontSize={8} fill={mutedC}>{g.name}</text>
+            </g>
+          );
+        })}
+
+        {/* Switch chassis */}
+        <rect x={TOPO_SW_CX - TOPO_SW_HW} y={TOPO_SW_CY - TOPO_SW_HH}
+          width={TOPO_SW_HW * 2} height={TOPO_SW_HH * 2} rx={13} fill={swBg} stroke={swBd} strokeWidth={2} />
+        <rect x={TOPO_SW_CX - TOPO_SW_HW} y={TOPO_SW_CY - TOPO_SW_HH}
+          width={TOPO_SW_HW * 2} height={4} fill="url(#topoSwGrad)" rx={13} />
+        {ports.slice(0, Math.min(ports.length, 20)).map((p, i) => {
+          const col = p.mode === 'trunk'
+            ? '#a855f7'
+            : (vlans.find(v => v.id === p.vlanId)?.color ?? '#64748b');
+          const ci = i % 10, row = Math.floor(i / 10);
+          return (
+            <rect key={p.id}
+              x={TOPO_SW_CX - TOPO_SW_HW + 12 + ci * 15}
+              y={TOPO_SW_CY - TOPO_SW_HH + 10 + row * 17}
+              width={11} height={8} rx={2} fill={col} opacity={0.85} />
+          );
+        })}
+        <text x={TOPO_SW_CX} y={TOPO_SW_CY + TOPO_SW_HH - 16}
+          textAnchor="middle" fontSize={10.5} fontWeight={800} fill={textC}>Catalyst-2960</text>
+        <text x={TOPO_SW_CX} y={TOPO_SW_CY + TOPO_SW_HH - 4}
+          textAnchor="middle" fontSize={7.5} fill={mutedC}>{ports.length}-port managed switch</text>
+
+        {/* Router (trunk uplink) */}
+        {trunkCount > 0 && (
+          <g>
+            <circle cx={TOPO_ROUTER_X} cy={TOPO_ROUTER_Y} r={28}
+              fill={isDark ? '#161b22' : '#ffffff'}
+              stroke={isDark ? '#30363d' : '#d0d7de'} strokeWidth={1.5} />
+            <text x={TOPO_ROUTER_X} y={TOPO_ROUTER_Y + 7} textAnchor="middle" fontSize={19}>🔀</text>
+            <text x={TOPO_ROUTER_X} y={TOPO_ROUTER_Y + 44}
+              textAnchor="middle" fontSize={9} fontWeight={800} fill={textC}>Router</text>
+            <text x={TOPO_ROUTER_X} y={TOPO_ROUTER_Y + 56}
+              textAnchor="middle" fontSize={7.5} fill={mutedC}>RoaS</text>
+          </g>
+        )}
+
+        {/* Empty state */}
+        {vlanGroups.length === 0 && (
+          <text x={TOPO_SW_CX} y={TOPO_SW_CY - 72}
+            textAnchor="middle" fontSize={11} fill={mutedC}>
+            Assign access ports in Switch Lab to see broadcast domains
+          </text>
+        )}
+      </svg>
+
+      {/* Legend */}
+      <div style={{ padding:'0.65rem 1rem', borderTop:`1px solid ${T.borderColor}`, display:'flex', gap:'0.85rem', flexWrap:'wrap', alignItems:'center' }}>
+        <span style={{ fontSize:'0.62rem', fontWeight:800, color:T.textMuted, textTransform:'uppercase', letterSpacing:'0.07em' }}>Broadcast Domains:</span>
+        {vlanGroups.map(g => (
+          <div key={g.id} style={{ display:'flex', alignItems:'center', gap:4 }}>
+            <div style={{ width:8, height:8, borderRadius:2, background:g.color }} />
+            <span style={{ fontSize:'0.7rem', fontWeight:600, color:T.textPrimary }}>VLAN {g.id} — {g.name}</span>
+            <span style={{ fontSize:'0.62rem', color:T.textMuted }}>({g.apCount})</span>
+          </div>
+        ))}
+        {trunkCount > 0 && (
+          <div style={{ display:'flex', alignItems:'center', gap:5 }}>
+            <div style={{ width:20, height:4, background:'linear-gradient(90deg,#4493f8,#3fb950,#a855f7)', borderRadius:2 }} />
+            <span style={{ fontSize:'0.7rem', fontWeight:600, color:T.textPrimary }}>
+              Trunk · {trunkCount} port{trunkCount !== 1 ? 's' : ''}
+            </span>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
 
 /* ─── Component ─────────────────────────────────────────────────── */
 interface VlanSuiteProps { isDarkMode?: boolean; }
@@ -339,7 +557,7 @@ export const VlanSuite: React.FC<VlanSuiteProps> = ({ isDarkMode = true }) => {
         </div>
         {/* tab bar */}
         <div style={{ display:'flex', gap:6, marginBottom:'0', paddingBottom:'0', overflowX:'auto' }}>
-          {([['switch','Switch Lab'],['packet','Packet Sim'],['frame','Frame Forge'],['cli','CLI Challenge'],['roas','RoaS Config']] as [TabId,string][]).map(([id,label]) => (
+          {([['switch','Switch Lab'],['packet','Packet Sim'],['frame','Frame Forge'],['cli','CLI Challenge'],['roas','RoaS Config'],['topo','Topology']] as [TabId,string][]).map(([id,label]) => (
             <button key={id} type="button" onClick={() => setTab(id)} style={{ padding:'0.55rem 1rem', border:'none', borderBottom: tab===id ? `2px solid #4493f8` : '2px solid transparent', background:'none', color: tab===id ? '#4493f8' : T.textMuted, fontWeight:700, fontSize:'0.78rem', cursor:'pointer', whiteSpace:'nowrap', fontFamily:'inherit', transition:'color 0.15s' }}>
               {label}
             </button>
@@ -728,6 +946,16 @@ export const VlanSuite: React.FC<VlanSuiteProps> = ({ isDarkMode = true }) => {
                 })}
               </pre>
             </div>
+          </div>
+        )}
+
+        {/* ══ TAB 6: Topology ══ */}
+        {tab === 'topo' && (
+          <div style={{ animation:'vlan-fade 0.2s ease-out' }}>
+            <p style={{ margin:'0 0 1rem', fontSize:'0.8rem', color:T.textSecondary, lineHeight:1.55 }}>
+              Live broadcast domain map — updates as you configure ports in the Switch Lab. Dashed zones are Layer 2 segments; hosts in different zones require a Layer 3 router to communicate.
+            </p>
+            <TopoSvg vlans={vlans} ports={ports} isDarkMode={isDarkMode} T={T} />
           </div>
         )}
 

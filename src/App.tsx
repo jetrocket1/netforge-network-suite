@@ -51,6 +51,8 @@ const PkiLabLazy           = lazyLab(() => import('./PkiLab'),               'Pk
 const Dot1xLabLazy         = lazyLab(() => import('./Dot1xLab'),             'Dot1xLab');
 const ForensicsLabLazy     = lazyLab(() => import('./ForensicsLab'),         'ForensicsLab');
 const IpsecLabLazy         = lazyLab(() => import('./IpsecLab'),             'IpsecLab');
+const PhishingSimLazy      = lazyLab(() => import('./PhishingSim'),          'PhishingSim');
+const ArpMitmLazy          = lazyLab(() => import('./ArpMitm'),              'ArpMitm');
 
 // ── Auth / ads / payment ──────────────────────────────────────────────────────
 import { AuthProvider, useAuth } from './contexts/AuthContext';
@@ -111,7 +113,7 @@ const REGISTRY: Category[] = [
   { catId:'switching', catLabel:'Switching', tools:[
     { id:'switchIntro',     label:'What is a Switch?',           component:SwitchIntroLazy,   name:'SwitchIntro',         difficulty:'beginner' },
     { id:'macLab',          label:'MAC Learning & Forwarding',   component:MacLabLazy,        name:'MacLab',              difficulty:'beginner' },
-    { id:'vlanMap',         label:'VLAN Configuration',          component:VlanSuiteLazy,     name:'VlanSuite',           difficulty:'intermediate' },
+    { id:'vlanMap',         label:'VLAN Configuration',          component:VlanSuiteLazy,     name:'VlanSuite',           difficulty:'intermediate', premium:true },
     { id:'stpLab',          label:'Spanning Tree Protocol',      component:StpLabLazy,        name:'StpLab',              difficulty:'intermediate' },
     { id:'linkAggregation', label:'Link Aggregation',            component:LinkAggLabLazy,    name:'LinkAggregationLab',  difficulty:'intermediate' },
     { id:'dot1xLab',        label:'802.1X Network Access Control', component:Dot1xLabLazy,    name:'Dot1xLab',            difficulty:'advanced', premium:true },
@@ -128,7 +130,7 @@ const REGISTRY: Category[] = [
   ]},
   { catId:'wireless', catLabel:'Wireless', tools:[
     { id:'wirelessIntro', label:'What is Wireless?',    component:WirelessIntroLazy,  name:'WirelessIntro',  difficulty:'beginner' },
-    { id:'wifi',        label:'Wi-Fi Signal Analyser',  component:WifiAnalyzerLazy,   name:'WifiAnalyzer',   difficulty:'beginner' },
+    { id:'wifi',        label:'Wi-Fi Spectrum Analyser', component:WifiAnalyzerLazy,   name:'WifiAnalyzer',   difficulty:'intermediate', premium:true },
     { id:'roaming',     label:'Cell Overlap & Roaming', component:WifiRoamingLazy,    name:'WifiRoamingLab', difficulty:'intermediate' },
     { id:'beamforming', label:'Beamforming',            component:WifiBeamformingLazy,name:'WifiBeamforming',difficulty:'intermediate' },
     { id:'security',    label:'Wi-Fi Security (WPA)',   component:WifiSecurityLazy,   name:'WifiSecurity',   difficulty:'intermediate' },
@@ -141,6 +143,8 @@ const REGISTRY: Category[] = [
     { id:'firewallLab',  label:'Firewall Zone Policy',        component:FirewallLabLazy,    name:'FirewallLab',       difficulty:'advanced',     premium:true },
     { id:'pkiLab',       label:'PKI & Certificate Chain',     component:PkiLabLazy,         name:'PkiLab',            difficulty:'advanced',     premium:true },
     { id:'forensicsLab', label:'Network Forensics',           component:ForensicsLabLazy,   name:'ForensicsLab',      difficulty:'advanced',     premium:true },
+    { id:'phishingSim',  label:'Phishing Simulator',          component:PhishingSimLazy,    name:'PhishingSim',       difficulty:'advanced',     premium:true },
+    { id:'arpMitm',      label:'ARP Poisoning / MITM',        component:ArpMitmLazy,        name:'ArpMitm',           difficulty:'advanced',     premium:true },
   ]},
   { catId:'powershell', catLabel:'PowerShell', tools:[
     { id:'cheatsheet', label:'Diagnostics Command Matrix', component:PowerShellLazy, name:'PowerShellCheatsheet', difficulty:'beginner' },
@@ -246,7 +250,7 @@ function AppInner() {
     document.title = tool?`${tool.label} | Netforge`:'Netforge';
     const url=new URL(window.location.href);
     url.searchParams.set('cat',activeCat); url.searchParams.set('tool',activeTool);
-    url.searchParams.delete('payment');
+    url.searchParams.delete('payment'); url.searchParams.delete('ip'); url.searchParams.delete('cidr');
     window.history.pushState({},'',url.toString());
   },[activeCat,activeTool]);
 
