@@ -241,7 +241,7 @@ interface TopologySvgProps {
 }
 
 const TopologySvg: React.FC<TopologySvgProps> = ({
-  step,
+  step: _step,
   packets,
   stepKey,
   showDai,
@@ -436,8 +436,7 @@ const DEVICE_INFO: Record<string, DeviceInfo> = {
 
 // ─── Intercept Panel ─────────────────────────────────────────────────────────
 
-const InterceptPanel: React.FC<{ isDarkMode: boolean }> = ({ isDarkMode }) => {
-  const T = getLabTheme(isDarkMode);
+const InterceptPanel: React.FC<{ isDarkMode: boolean }> = ({ isDarkMode: _isDarkMode }) => {
   return (
     <div style={{ borderRadius: 12, overflow: 'hidden', border: `1px solid #f8514940` }}>
       <div style={{
