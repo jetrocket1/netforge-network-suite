@@ -1,10 +1,47 @@
 ﻿import { useState, useEffect, useRef, Component, lazy, Suspense } from 'react';
 import type { ReactNode } from 'react';
-import { PrivacyPolicy, TermsOfService } from './LegalPages';
-import { SubnettingPage, NetworkPlusPage, SecurityPlusPage, LabsPage, PricingPage, AboutPage } from './MarketingPages';
-import { HomePage } from './HomePage';
-import { GuidesIndexPage, GuideHowToSubnet, GuideNetworkPlusStudy, GuideNplusVsSecplus, GuideWhatIsVlan, GuideArpPoisoning, FaqPage, ContactPage } from './GuidesPages';
-import { NotFoundPage } from './NotFoundPage';
+// Page components — lazy so they don't inflate the main /app bundle
+const p = <T extends React.ComponentType>(fn: () => Promise<Record<string, unknown>>, key: string) =>
+  lazy(() => fn().then(m => ({ default: (m as Record<string, T>)[key] })));
+
+const HomePageLazy       = p(() => import('./HomePage'),        'HomePage');
+const PrivacyPolicyLazy  = p(() => import('./LegalPages'),      'PrivacyPolicy');
+const TermsOfServiceLazy = p(() => import('./LegalPages'),      'TermsOfService');
+const SubnettingLazy     = p(() => import('./MarketingPages'),  'SubnettingPage');
+const NetworkPlusLazy    = p(() => import('./MarketingPages'),  'NetworkPlusPage');
+const SecurityPlusLazy   = p(() => import('./MarketingPages'),  'SecurityPlusPage');
+const LabsPageLazy       = p(() => import('./MarketingPages'),  'LabsPage');
+const PricingPageLazy    = p(() => import('./MarketingPages'),  'PricingPage');
+const AboutPageLazy      = p(() => import('./MarketingPages'),  'AboutPage');
+const GuidesIndexLazy    = p(() => import('./GuidesPages'),     'GuidesIndexPage');
+const GuideSubnetLazy    = p(() => import('./GuidesPages'),     'GuideHowToSubnet');
+const GuideNPlusLazy     = p(() => import('./GuidesPages'),     'GuideNetworkPlusStudy');
+const GuideNvsS_Lazy     = p(() => import('./GuidesPages'),     'GuideNplusVsSecplus');
+const GuideVlanLazy      = p(() => import('./GuidesPages'),     'GuideWhatIsVlan');
+const GuideArpLazy       = p(() => import('./GuidesPages'),     'GuideArpPoisoning');
+const FaqPageLazy        = p(() => import('./GuidesPages'),     'FaqPage');
+const ContactPageLazy    = p(() => import('./GuidesPages'),     'ContactPage');
+const NotFoundLazy       = p(() => import('./NotFoundPage'),    'NotFoundPage');
+
+const PAGE_ROUTES: Record<string, React.LazyExoticComponent<React.ComponentType>> = {
+  '/':                                       HomePageLazy,
+  '/privacy':                                PrivacyPolicyLazy,
+  '/terms':                                  TermsOfServiceLazy,
+  '/subnetting':                             SubnettingLazy,
+  '/comptia-network-plus':                   NetworkPlusLazy,
+  '/comptia-security-plus':                  SecurityPlusLazy,
+  '/networking-labs':                        LabsPageLazy,
+  '/pricing':                                PricingPageLazy,
+  '/about':                                  AboutPageLazy,
+  '/guides':                                 GuidesIndexLazy,
+  '/guides/how-to-subnet':                   GuideSubnetLazy,
+  '/guides/network-plus-study-guide':        GuideNPlusLazy,
+  '/guides/network-plus-vs-security-plus':   GuideNvsS_Lazy,
+  '/guides/what-is-a-vlan':                 GuideVlanLazy,
+  '/guides/arp-poisoning':                  GuideArpLazy,
+  '/faq':                                    FaqPageLazy,
+  '/contact':                                ContactPageLazy,
+};
 
 type LabProps = { isDarkMode: boolean; isPro?: boolean; hasExam?: boolean; onUpgrade?: () => void };
 
@@ -569,23 +606,11 @@ function AppInner() {
 
 export default function App() {
   const path = window.location.pathname;
-  if (path === '/')                                   return <HomePage />;
-  if (path === '/privacy')                            return <PrivacyPolicy />;
-  if (path === '/terms')                              return <TermsOfService />;
-  if (path === '/subnetting')                         return <SubnettingPage />;
-  if (path === '/comptia-network-plus')               return <NetworkPlusPage />;
-  if (path === '/comptia-security-plus')              return <SecurityPlusPage />;
-  if (path === '/networking-labs')                    return <LabsPage />;
-  if (path === '/pricing')                            return <PricingPage />;
-  if (path === '/about')                              return <AboutPage />;
-  if (path === '/guides')                             return <GuidesIndexPage />;
-  if (path === '/guides/how-to-subnet')               return <GuideHowToSubnet />;
-  if (path === '/guides/network-plus-study-guide')    return <GuideNetworkPlusStudy />;
-  if (path === '/guides/network-plus-vs-security-plus') return <GuideNplusVsSecplus />;
-  if (path === '/guides/what-is-a-vlan')              return <GuideWhatIsVlan />;
-  if (path === '/guides/arp-poisoning')               return <GuideArpPoisoning />;
-  if (path === '/faq')                                return <FaqPage />;
-  if (path === '/contact')                            return <ContactPage />;
-  if (path === '/app' || path.startsWith('/app/'))    return <AuthProvider><AppInner /></AuthProvider>;
-  return <NotFoundPage />;
+  if (path === '/app' || path.startsWith('/app/')) return <AuthProvider><AppInner /></AuthProvider>;
+  const Page = PAGE_ROUTES[path] ?? NotFoundLazy;
+  return (
+    <Suspense fallback={<div style={{ minHeight: '100vh', background: '#0d1117' }} />}>
+      <Page />
+    </Suspense>
+  );
 }
