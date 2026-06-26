@@ -1,5 +1,10 @@
 ﻿import { useState, useEffect, useRef, Component, lazy, Suspense } from 'react';
 import type { ReactNode } from 'react';
+import { PrivacyPolicy, TermsOfService } from './LegalPages';
+import { SubnettingPage, NetworkPlusPage, SecurityPlusPage, LabsPage, PricingPage, AboutPage } from './MarketingPages';
+import { HomePage } from './HomePage';
+import { GuidesIndexPage, GuideHowToSubnet, GuideNetworkPlusStudy, GuideNplusVsSecplus, GuideWhatIsVlan, GuideArpPoisoning, FaqPage, ContactPage } from './GuidesPages';
+import { NotFoundPage } from './NotFoundPage';
 
 type LabProps = { isDarkMode: boolean; isPro?: boolean; hasExam?: boolean; onUpgrade?: () => void };
 
@@ -217,6 +222,7 @@ function AppInner() {
   const [collapsed,  setCollapsed]  = useState(() => ls.get('netforge-sidebar-collapsed','false')==='true');
   const [search,      setSearch]      = useState('');
   const [showUpgrade,     setShowUpgrade]     = useState(false);
+  const [cookieDismissed, setCookieDismissed] = useState(() => ls.get('netforge-cookie-consent','') === 'yes');
   const [upgradeProduct,  setUpgradeProduct]  = useState<Product>('bundle');
   const [showPricing,     setShowPricing]     = useState(false);
   const [showProSuccess,  setShowProSuccess]  = useState(false);
@@ -457,6 +463,13 @@ function AppInner() {
             <span>☕</span>
             <span>Buy me a coffee</span>
           </a>
+          <div style={{ display:'flex', gap:'0.75rem', justifyContent:'center', paddingTop:'0.25rem' }}>
+            <a href="/" style={{ fontSize:'0.65rem', color:T.textMuted, textDecoration:'none' }}>Home</a>
+            <span style={{ fontSize:'0.65rem', color:T.border }}>·</span>
+            <a href="/privacy" style={{ fontSize:'0.65rem', color:T.textMuted, textDecoration:'none' }}>Privacy</a>
+            <span style={{ fontSize:'0.65rem', color:T.border }}>·</span>
+            <a href="/terms" style={{ fontSize:'0.65rem', color:T.textMuted, textDecoration:'none' }}>Terms</a>
+          </div>
         </div>
       </aside>
 
@@ -514,7 +527,7 @@ function AppInner() {
         </div>
       </div>
     </div>
-    {showUpgrade    && <UpgradeModal    onClose={() => setShowUpgrade(false)}    T={T} defaultProduct={upgradeProduct} />}
+    {showUpgrade    && <UpgradeModal    onClose={() => setShowUpgrade(false)}    T={T} defaultProduct={upgradeProduct} isPro={hasPremium} hasExam={ctxHasExam} />}
     {showPricing    && <PricingModal   onClose={() => setShowPricing(false)}    onBuy={buyProduct} isPro={hasPremium} hasExam={ctxHasExam} isLoggedIn={!!user} T={T} />}
     {showProSuccess && <ProSuccessModal onClose={() => setShowProSuccess(false)} T={T} />}
     {showProfile && user && <ProfilePage user={user} isPro={hasPremium} hasExam={ctxHasExam} completedLabs={completedLabs} totalLabs={totalLabs} onClose={() => setShowProfile(false)} onUpgrade={unlockPremium} T={T} />}
@@ -537,10 +550,42 @@ function AppInner() {
         </div>
       </div>
     )}
+
+    {/* ── Cookie banner ── */}
+    {!cookieDismissed && (
+      <div style={{ position:'fixed', bottom:0, left:0, right:0, zIndex:9999, padding:'0.85rem 1.25rem', background: isDark ? '#161b22' : '#ffffff', borderTop:`1px solid ${T.border}`, display:'flex', alignItems:'center', gap:'1rem', flexWrap:'wrap', fontFamily:'system-ui,-apple-system,sans-serif', boxShadow:'0 -4px 24px rgba(0,0,0,0.25)' }}>
+        <span style={{ flex:1, fontSize:'0.78rem', color:T.textMuted, lineHeight:1.6, minWidth:220 }}>
+          🍪 We use an authentication session cookie and localStorage to save your progress and theme. No tracking or advertising cookies. <a href="/privacy" style={{ color:T.accent, textDecoration:'none' }}>Privacy Policy</a>
+        </span>
+        <button onClick={() => { ls.set('netforge-cookie-consent','yes'); setCookieDismissed(true); }}
+          style={{ padding:'0.45rem 1.25rem', background:T.accent, color:'#fff', border:'none', borderRadius:8, fontWeight:700, fontSize:'0.8rem', cursor:'pointer', fontFamily:'inherit', whiteSpace:'nowrap', flexShrink:0 }}>
+          Got it
+        </button>
+      </div>
+    )}
     </>
   );
 }
 
 export default function App() {
-  return <AuthProvider><AppInner /></AuthProvider>;
+  const path = window.location.pathname;
+  if (path === '/')                                   return <HomePage />;
+  if (path === '/privacy')                            return <PrivacyPolicy />;
+  if (path === '/terms')                              return <TermsOfService />;
+  if (path === '/subnetting')                         return <SubnettingPage />;
+  if (path === '/comptia-network-plus')               return <NetworkPlusPage />;
+  if (path === '/comptia-security-plus')              return <SecurityPlusPage />;
+  if (path === '/networking-labs')                    return <LabsPage />;
+  if (path === '/pricing')                            return <PricingPage />;
+  if (path === '/about')                              return <AboutPage />;
+  if (path === '/guides')                             return <GuidesIndexPage />;
+  if (path === '/guides/how-to-subnet')               return <GuideHowToSubnet />;
+  if (path === '/guides/network-plus-study-guide')    return <GuideNetworkPlusStudy />;
+  if (path === '/guides/network-plus-vs-security-plus') return <GuideNplusVsSecplus />;
+  if (path === '/guides/what-is-a-vlan')              return <GuideWhatIsVlan />;
+  if (path === '/guides/arp-poisoning')               return <GuideArpPoisoning />;
+  if (path === '/faq')                                return <FaqPage />;
+  if (path === '/contact')                            return <ContactPage />;
+  if (path === '/app' || path.startsWith('/app/'))    return <AuthProvider><AppInner /></AuthProvider>;
+  return <NotFoundPage />;
 }
