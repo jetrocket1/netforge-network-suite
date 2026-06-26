@@ -74,7 +74,7 @@ export function PrivacyPolicy() {
       <P>NetForge ("we", "us", "our") is an online network engineering training platform available at <strong style={{ color: '#e6edf3' }}>netforgens.com</strong>. For data protection queries, contact us at <a href="mailto:admin@netforgens.com" style={{ color: ACCENT }}>admin@netforgens.com</a>.</P>
 
       <H2>2. What Data We Collect</H2>
-      <P><strong style={{ color: '#e6edf3' }}>Account data</strong> — when you sign in with Google, we receive your name, email address, and profile photo via Google OAuth. We store your email and display name in our database (Supabase).</P>
+      <P><strong style={{ color: '#e6edf3' }}>Account data</strong> — when you create an account or sign in, we collect your email address. If you sign in with Google, we also receive your display name and profile photo via Google OAuth. We store your email and display name in our database (Supabase). We never store passwords in plaintext — password authentication is handled securely by Supabase.</P>
       <P><strong style={{ color: '#e6edf3' }}>Payment data</strong> — if you purchase a Pro or Bundle plan, your payment is processed by <strong style={{ color: '#e6edf3' }}>Stripe</strong>. We never see or store your card details. We receive a record of your purchase status (paid/not paid) from Stripe.</P>
       <P><strong style={{ color: '#e6edf3' }}>Usage data</strong> — we store which labs you have completed in your browser's local storage. This data does not leave your device unless you are signed in, in which case progress may be associated with your account.</P>
       <P><strong style={{ color: '#e6edf3' }}>Technical data</strong> — standard web server logs may record your IP address, browser type, and pages visited. These are retained for security purposes only.</P>
@@ -91,7 +91,7 @@ export function PrivacyPolicy() {
 
       <H2>4. Third-Party Services</H2>
       <Ul>
-        <Li><strong style={{ color: '#e6edf3' }}>Google OAuth</strong> — used for sign-in only. Governed by Google's Privacy Policy.</Li>
+        <Li><strong style={{ color: '#e6edf3' }}>Google OAuth</strong> — used for sign-in if you choose the "Continue with Google" option. Governed by Google's Privacy Policy.</Li>
         <Li><strong style={{ color: '#e6edf3' }}>Supabase</strong> — our database and authentication backend, hosted in the EU. Data processed under a Data Processing Agreement.</Li>
         <Li><strong style={{ color: '#e6edf3' }}>Stripe</strong> — payment processor. Your card data goes directly to Stripe and is never seen by us. Stripe is PCI-DSS certified.</Li>
         <Li><strong style={{ color: '#e6edf3' }}>Fasthosts</strong> — UK-based web hosting for our static site files.</Li>

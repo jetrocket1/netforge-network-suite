@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { getLabTheme } from './labTheme';
+import { LabEduPanel, type EduCard } from './LabEduPanel';
 
 type TlsDir = 'cs' | 'sc';
 type TlsEnc = 'plain' | 'handshake' | 'app' | 'early';
@@ -39,18 +40,18 @@ const SCENARIOS: TlsScenario[] = [
       {
         dir: 'sc', name: 'ServerHello', enc: 'plain',
         title: 'ServerHello — server picks cipher and sends key share',
-        detail: 'The server picks a cipher suite, responds with its own ECDH public key, and that is the last plaintext message. Both sides can now independently compute the same ECDH shared secret (x25519 Diffie-Hellman) and derive Handshake Traffic Keys from it using HKDF. Everything after this is encrypted.',
+        detail: 'The server picks a cipher suite, responds with its own ECDH public key, and that is the last plaintext message. Both sides can now independently compute the same ECDH shared secret and derive Handshake Traffic Keys using HKDF. Everything after this is encrypted.',
         fields: [
           { k: 'Chosen Cipher', v: 'TLS_AES_256_GCM_SHA384' },
           { k: 'Key Share (x25519)', v: '0x4f7a9c... (32-byte ECDH public key)' },
           { k: 'TLS Version Selected', v: 'TLS 1.3' },
         ],
-        keyEvent: { label: 'ECDH → Handshake Keys derived (both sides)', color: '#4493f8' },
+        keyEvent: { label: 'ECDH → Handshake Traffic Keys derived (both sides)', color: '#4493f8' },
       },
       {
         dir: 'sc', name: '{EncryptedExtensions}', enc: 'handshake',
         title: 'EncryptedExtensions — server sends hidden extensions',
-        detail: 'In TLS 1.2, all extensions were sent plaintext. In TLS 1.3 the server moves extensions into this encrypted message, hiding details about the negotiated connection from passive observers. This is the first encrypted record in the handshake.',
+        detail: 'In TLS 1.2, all extensions were sent plaintext. In TLS 1.3 the server moves extensions into this encrypted message, hiding negotiation details from passive observers. This is the first encrypted record in the handshake.',
         fields: [
           { k: 'ALPN', v: 'h2 (HTTP/2 negotiated)' },
           { k: 'Max Fragment Length', v: '16384 bytes' },
@@ -60,7 +61,7 @@ const SCENARIOS: TlsScenario[] = [
       {
         dir: 'sc', name: '{Certificate}', enc: 'handshake',
         title: 'Certificate — server proves its identity (encrypted)',
-        detail: 'The server sends its certificate chain. Unlike TLS 1.2, this is fully encrypted — a passive attacker cannot determine which certificate (and therefore which domain) the server is presenting, even if they can see the IP. The client verifies the chain against its trusted root CA store.',
+        detail: 'The server sends its certificate chain — fully encrypted in TLS 1.3. A passive attacker cannot determine which certificate (and domain) is being presented. The client verifies the chain against its trusted root CA store.',
         fields: [
           { k: 'Subject', v: 'CN=www.example.com' },
           { k: 'Issuer', v: 'DigiCert TLS RSA SHA256 2020 CA1' },
@@ -73,7 +74,7 @@ const SCENARIOS: TlsScenario[] = [
       {
         dir: 'sc', name: '{CertificateVerify}', enc: 'handshake',
         title: 'CertificateVerify — server proves it holds the private key',
-        detail: 'Owning a certificate is not enough — the server must prove it also has the matching private key. It signs a hash of the complete handshake transcript so far using the certificate\'s private key. The client verifies this signature against the public key in the certificate.',
+        detail: 'Owning a certificate is not enough — the server must prove it also holds the matching private key. It signs a hash of the complete handshake transcript using the certificate\'s private key. The client verifies this signature against the public key in the certificate.',
         fields: [
           { k: 'Algorithm', v: 'rsa_pss_rsae_sha256' },
           { k: 'Signs Over', v: 'SHA-256 of full handshake transcript' },
@@ -83,7 +84,7 @@ const SCENARIOS: TlsScenario[] = [
       {
         dir: 'sc', name: '{Finished}', enc: 'handshake',
         title: 'Server Finished — handshake transcript MAC',
-        detail: 'The server sends an HMAC over the entire handshake transcript using the server_finished_key derived from the handshake secret. The client verifies this to confirm neither side has been tampered with. After verification, both sides independently derive Application Traffic Keys.',
+        detail: 'The server sends an HMAC over the entire handshake transcript using the server_finished_key. The client verifies this to confirm no tampering. After verification, both sides independently derive Application Traffic Keys.',
         fields: [
           { k: 'Verify Data', v: 'HMAC-SHA384 over handshake transcript' },
           { k: 'Key', v: 'Derived from server_handshake_traffic_secret' },
@@ -93,7 +94,7 @@ const SCENARIOS: TlsScenario[] = [
       {
         dir: 'cs', name: '{Finished}', enc: 'handshake',
         title: 'Client Finished — client confirms the handshake',
-        detail: 'The client sends its own Finished message using the client_finished_key. This confirms the client received and verified everything correctly. The handshake is now complete and fully authenticated on both sides. Application data can flow immediately.',
+        detail: 'The client sends its own Finished message. This confirms the client received and verified everything correctly. The handshake is now fully authenticated on both sides. Application data can flow immediately after.',
         fields: [
           { k: 'Verify Data', v: 'HMAC-SHA384 over handshake transcript' },
           { k: 'Key', v: 'Derived from client_handshake_traffic_secret' },
@@ -103,11 +104,11 @@ const SCENARIOS: TlsScenario[] = [
       {
         dir: 'cs', name: '[Application Data]', enc: 'app',
         title: 'Application Data — encrypted HTTP/2 traffic flows',
-        detail: 'All application data (HTTP requests, responses, headers, body) is encrypted using AES-256-GCM with per-record nonces. Each TLS record has authentication tags that detect any tampering. The connection also provides forward secrecy — if the server private key is later stolen, past sessions cannot be decrypted because the ephemeral ECDH key was discarded.',
+        detail: 'All application data is encrypted using AES-256-GCM with per-record nonces. Each TLS record has authentication tags that detect tampering. The connection provides forward secrecy — if the server private key is later stolen, past sessions cannot be decrypted because the ephemeral ECDH key was discarded.',
         fields: [
           { k: 'Encryption', v: 'AES-256-GCM (AEAD)' },
           { k: 'Key Source', v: 'client/server_application_traffic_secret_0' },
-          { k: 'Forward Secrecy', v: 'Yes — ephemeral x25519 keys discarded' },
+          { k: 'Forward Secrecy', v: 'Yes — ephemeral x25519 keys discarded after use' },
           { k: 'Record Auth', v: '16-byte GHASH tag per record' },
         ],
       },
@@ -119,7 +120,7 @@ const SCENARIOS: TlsScenario[] = [
       {
         dir: 'cs', name: 'ClientHello + early_data', enc: 'early',
         title: 'ClientHello with 0-RTT early data',
-        detail: 'If the client has a session ticket from a previous connection (a Pre-Shared Key), it can send application data alongside the ClientHello — before the server responds. This eliminates the 1-RTT delay. Early data is encrypted with a key derived from the PSK, but has reduced security: it is not forward-secret and is vulnerable to replay attacks if not mitigated server-side.',
+        detail: 'If the client has a session ticket from a previous connection (a Pre-Shared Key), it can send application data alongside the ClientHello — before the server responds. This eliminates the 1-RTT delay. Early data is encrypted with a key derived from the PSK, but is not forward-secret and is vulnerable to replay attacks.',
         fields: [
           { k: 'PSK Identity', v: 'Session ticket from prior connection' },
           { k: 'Early Data', v: 'HTTP GET /index.html (sent immediately)' },
@@ -131,7 +132,7 @@ const SCENARIOS: TlsScenario[] = [
       {
         dir: 'sc', name: 'ServerHello + {EncryptedExtensions}', enc: 'handshake',
         title: 'Server accepts PSK and 0-RTT data',
-        detail: 'The server selects the PSK, derives handshake keys, and sends EncryptedExtensions with early_data accepted. If the server rejects 0-RTT (e.g., replay detected), it sends early_data rejected and the client must retransmit that data in normal 1-RTT flow.',
+        detail: 'The server selects the PSK, derives handshake keys, and sends EncryptedExtensions with early_data accepted. If the server rejects 0-RTT (e.g., replay detected), early_data is rejected and the client must retransmit that data in normal 1-RTT flow.',
         fields: [
           { k: 'PSK Selected', v: 'Identity 0 (from session ticket)' },
           { k: 'early_data', v: 'accepted' },
@@ -142,7 +143,7 @@ const SCENARIOS: TlsScenario[] = [
       {
         dir: 'sc', name: '{Finished}', enc: 'handshake',
         title: 'Server Finished — application keys derivable',
-        detail: 'Server sends Certificate (omitted for PSK resumption — identity already established) and Finished. Both sides derive Application Traffic Keys.',
+        detail: 'Server sends Finished (Certificate omitted for PSK resumption — identity already established from prior session). Both sides derive Application Traffic Keys.',
         fields: [
           { k: 'Certificate', v: 'Omitted (PSK proves prior authentication)' },
           { k: 'Finished', v: 'HMAC over handshake transcript' },
@@ -152,7 +153,7 @@ const SCENARIOS: TlsScenario[] = [
       {
         dir: 'cs', name: '{Finished} + [App Data]', enc: 'app',
         title: 'Client Finished and full application data',
-        detail: 'Client sends its Finished and continues with normal application data. Total handshake overhead: 0 additional round trips if 0-RTT was accepted. Net result: the first HTTP request arrives at the server before the TLS handshake even completes from the server\'s perspective.',
+        detail: 'Client sends its Finished and continues with normal application data. Total handshake overhead: 0 additional round trips if 0-RTT was accepted. The first HTTP request arrives at the server before the TLS handshake completes from the server\'s perspective.',
         fields: [
           { k: 'Effective RTT', v: '0 (data sent with ClientHello)' },
           { k: 'Use Case', v: 'Repeat connections to same server (CDNs, APIs)' },
@@ -162,7 +163,7 @@ const SCENARIOS: TlsScenario[] = [
     ],
   },
   {
-    name: 'TLS 1.2 (compare)', desc: 'Legacy 2-RTT handshake — certificate and extensions sent in plaintext',
+    name: 'TLS 1.2 (legacy)', desc: 'Legacy 2-RTT handshake — certificate and extensions sent in plaintext',
     steps: [
       {
         dir: 'cs', name: 'ClientHello', enc: 'plain',
@@ -178,7 +179,7 @@ const SCENARIOS: TlsScenario[] = [
       {
         dir: 'sc', name: 'ServerHello', enc: 'plain',
         title: 'ServerHello — picks cipher, returns random',
-        detail: 'Server picks the cipher suite and returns a server random. No key material is exchanged yet.',
+        detail: 'Server picks the cipher suite and returns a server random. No key material is exchanged yet — that\'s the key cost of TLS 1.2 vs 1.3.',
         fields: [
           { k: 'Chosen Cipher', v: 'TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384' },
           { k: 'Server Random', v: '32 bytes (used in key derivation)' },
@@ -187,7 +188,7 @@ const SCENARIOS: TlsScenario[] = [
       {
         dir: 'sc', name: 'Certificate', enc: 'plain',
         title: 'Certificate — SENT IN PLAINTEXT (TLS 1.2 weakness)',
-        detail: 'In TLS 1.2 the certificate is sent in plaintext. Any passive observer on the network can see exactly which certificate (and domain) the server is presenting — even if they cannot read the application data. TLS 1.3 encrypts the certificate. SNI already leaks the hostname in both versions (unless ECH is used).',
+        detail: 'In TLS 1.2 the certificate is sent in plaintext. Any passive observer can see exactly which certificate (and domain) the server is presenting, even if they cannot read application data. TLS 1.3 encrypts the certificate.',
         fields: [
           { k: 'Subject', v: 'CN=www.example.com (VISIBLE to attacker)' },
           { k: 'Certificate Chain', v: 'End Entity → Intermediate → Root (all plaintext)' },
@@ -197,7 +198,7 @@ const SCENARIOS: TlsScenario[] = [
       {
         dir: 'sc', name: 'ServerKeyExchange', enc: 'plain',
         title: 'ServerKeyExchange — ECDHE parameters (plaintext)',
-        detail: 'For ECDHE cipher suites, the server sends its ephemeral key exchange parameters signed with its private key. This message does not exist in TLS 1.3 (folded into ServerHello key_share). If RSA key exchange was used instead, this message is skipped — but RSA exchange means no forward secrecy.',
+        detail: 'For ECDHE cipher suites, the server sends its ephemeral key exchange parameters signed with its private key. This message does not exist in TLS 1.3 (folded into ServerHello key_share).',
         fields: [
           { k: 'Curve', v: 'secp256r1 (NIST P-256)' },
           { k: 'Server ECDH Pub Key', v: '0x04 3a9f... (65 bytes, uncompressed)' },
@@ -222,7 +223,7 @@ const SCENARIOS: TlsScenario[] = [
       {
         dir: 'cs', name: 'ChangeCipherSpec', enc: 'plain',
         title: 'ChangeCipherSpec + Client Finished',
-        detail: 'A legacy compatibility message signalling the switch to encrypted communication. In TLS 1.3 this is only sent for middlebox compatibility and carries no semantic meaning — the actual key schedule transition is implicit.',
+        detail: 'A legacy compatibility message signalling the switch to encrypted communication. In TLS 1.3 this is only sent for middlebox compatibility and carries no semantic meaning.',
         fields: [
           { k: 'Message', v: 'ChangeCipherSpec (legacy signal)' },
           { k: 'Followed by', v: 'Finished (encrypted with derived session keys)' },
@@ -232,7 +233,7 @@ const SCENARIOS: TlsScenario[] = [
       {
         dir: 'sc', name: 'ChangeCipherSpec + {Finished}', enc: 'handshake',
         title: 'Server ChangeCipherSpec + Server Finished',
-        detail: 'Server sends its own ChangeCipherSpec and Finished. After mutual Finished verification, both sides are authenticated and the handshake is complete. Application data can now flow — but this is the second full round trip since ClientHello.',
+        detail: 'Server sends its own ChangeCipherSpec and Finished. After mutual Finished verification, both sides are authenticated and the handshake is complete. This is the second full round trip since ClientHello.',
         fields: [
           { k: 'Total Round Trips', v: '2 (vs 1 for TLS 1.3)' },
           { k: 'TLS 1.3 Advantage', v: 'Saves ~20–50ms per connection' },
@@ -242,7 +243,7 @@ const SCENARIOS: TlsScenario[] = [
       {
         dir: 'cs', name: '[Application Data]', enc: 'app',
         title: 'Application Data — encrypted but weaker guarantees',
-        detail: 'Application data flows encrypted. However, if the server\'s RSA private key is ever compromised (or compelled), an attacker who recorded past sessions could decrypt them — because RSA key exchange does not provide forward secrecy. ECDHE does provide forward secrecy, but TLS 1.2 still allowed RSA. TLS 1.3 mandates ephemeral key exchange, removing this risk entirely.',
+        detail: 'Application data flows encrypted. However, TLS 1.2 still allowed RSA key exchange (no forward secrecy) and weak ciphers. TLS 1.3 mandates ephemeral key exchange and removed all weak cipher suites.',
         fields: [
           { k: 'Encryption', v: 'AES-256-GCM (if ECDHE suite chosen)' },
           { k: 'Forward Secrecy', v: 'Yes IF ECDHE was negotiated (not RSA)' },
@@ -253,260 +254,296 @@ const SCENARIOS: TlsScenario[] = [
   },
 ];
 
-function easeInOut(t: number): number { return t < 0.5 ? 2 * t * t : -1 + (4 - 2 * t) * t; }
-function lerp(a: number, b: number, t: number): number { return a + (b - a) * t; }
+const TLS_EDU: EduCard[] = [
+  { type: 'exam', title: 'TLS 1.3 vs TLS 1.2 — Key Exam Differences', body: 'TLS 1.3: 1-RTT handshake, certificate encrypted, forward secrecy mandatory (ECDHE only), weak ciphers removed (no RC4/3DES/CBC). TLS 1.2: 2-RTT handshake, certificate sent in plaintext, RSA key exchange allowed (no forward secrecy), weak ciphers negotiable. Exam question: "Which TLS version sends the server certificate encrypted?" Answer: TLS 1.3 only.' },
+  { type: 'exam', title: 'Forward Secrecy — Why It Matters', body: 'TLS 1.3 mandates ephemeral key exchange (ECDHE). Session keys are derived from a freshly-generated ECDH key pair discarded after use. If an attacker records today\'s encrypted traffic and later steals the server\'s RSA private key, they cannot decrypt past sessions — the ephemeral key no longer exists. TLS 1.2 with RSA key exchange has no forward secrecy.' },
+  { type: 'gotcha', title: '0-RTT Replay Attack Risk', body: '0-RTT early data is sent before the server responds, so the server cannot include a fresh nonce to prevent replay. An attacker who captures a ClientHello + early_data can resend it to trigger the same server-side action (e.g., a payment or state change). Servers must implement replay detection (nonce stores, time windows) and clients must only send idempotent requests (GET/HEAD) as 0-RTT data.' },
+  { type: 'realworld', title: 'Certificate Chain Validation in Practice', body: 'Clients trust Root CAs pre-installed in the OS or browser. The server\'s cert must chain to one of those roots via intermediates. Each link is verified by the issuer\'s digital signature. OCSP stapling lets the server include a timestamped revocation proof so the client doesn\'t need a separate revocation request — critical for performance and privacy (OCSP queries leak browsing history to the CA).' },
+  { type: 'config', title: 'Enforcing TLS 1.3 Only — Nginx Config', body: 'Disable older TLS versions and restrict to strong ciphers.', code: `# nginx.conf — TLS hardening
+ssl_protocols TLSv1.3;                    # drop 1.2 entirely
+ssl_prefer_server_ciphers off;            # TLS 1.3 ignores this anyway
 
-const CX = 115;  // client x
-const SX = 545;  // server x
-const STEP_H = 68;
-const START_Y = 90;
+# If you must keep TLS 1.2 for legacy clients:
+# ssl_protocols TLSv1.2 TLSv1.3;
+# ssl_ciphers ECDHE-ECDSA-AES256-GCM-SHA384:ECDHE-RSA-AES256-GCM-SHA384;
 
-function stepY(i: number): number { return START_Y + i * STEP_H; }
-function svgH(n: number): number { return START_Y + n * STEP_H + 30; }
+# Enable OCSP stapling
+ssl_stapling on;
+ssl_stapling_verify on;
+resolver 8.8.8.8 1.1.1.1 valid=300s;
+
+# HSTS — tell browsers to only use HTTPS for 1 year
+add_header Strict-Transport-Security "max-age=31536000; includeSubDomains" always;` },
+];
+
+const SCENARIO_META = [
+  { rtt: '1', version: 'TLS 1.3' },
+  { rtt: '0', version: '0-RTT' },
+  { rtt: '2', version: 'TLS 1.2' },
+];
+
+const encColor = (e: TlsEnc, T: ReturnType<typeof getLabTheme>) =>
+  ({ plain: T.warning, handshake: T.accent, app: T.success, early: '#a855f7' }[e]);
+
+const TYPE_COLORS: Record<TlsEnc, string> = { plain: '#d29922', handshake: '#4493f8', app: '#3fb950', early: '#a855f7' };
 
 interface TlsLabProps { isDarkMode?: boolean; }
 
 export const TlsLab: React.FC<TlsLabProps> = ({ isDarkMode = true }) => {
   const T = getLabTheme(isDarkMode);
-  const [scenario,  setScenario]  = useState(0);
-  const [step,      setStep]      = useState(0);
-  const [dotT,      setDotT]      = useState(1);
-  const [autoPlay,  setAutoPlay]  = useState(false);
-  const rafRef = useRef<number>(undefined);
-  const t0Ref  = useRef<number>(0);
+  const [scenario, setScenario] = useState(0);
+  const [step,     setStep]     = useState(0);   // # of steps revealed
+  const [auto,     setAuto]     = useState(false);
+  const [selected, setSelected] = useState<number | null>(null);
+  const msgBoxRef = useRef<HTMLDivElement>(null);
 
-  const sc  = SCENARIOS[scenario];
-  const cur = sc.steps[step];
+  const sc   = SCENARIOS[scenario];
+  const meta = SCENARIO_META[scenario];
 
-  useEffect(() => {
-    if (rafRef.current) cancelAnimationFrame(rafRef.current);
-    setDotT(0);
-    t0Ref.current = performance.now();
-    const tick = (now: number) => {
-      const t = Math.min((now - t0Ref.current) / 700, 1);
-      setDotT(t);
-      if (t < 1) rafRef.current = requestAnimationFrame(tick);
-    };
-    rafRef.current = requestAnimationFrame(tick);
-    return () => { if (rafRef.current) cancelAnimationFrame(rafRef.current); };
-  }, [step, scenario]);
+  // Derive connection state from the last revealed step
+  const lastEnc = step > 0 ? sc.steps[step - 1].enc : null;
+  const connState: 'idle' | 'handshake' | 'early' | 'secure' =
+    step === 0          ? 'idle'
+    : lastEnc === 'app' ? 'secure'
+    : lastEnc === 'early' ? 'early'
+    : 'handshake';
+
+  useEffect(() => { setStep(0); setSelected(null); setAuto(false); }, [scenario]);
 
   useEffect(() => {
-    if (!autoPlay || dotT < 1) return;
-    const id = setTimeout(() => {
-      if (step < sc.steps.length - 1) setStep(s => s + 1);
-      else setAutoPlay(false);
-    }, 600);
+    if (!auto) return;
+    if (step >= sc.steps.length) { setAuto(false); return; }
+    const id = setTimeout(() => setStep(s => s + 1), 800);
     return () => clearTimeout(id);
-  }, [autoPlay, dotT, step, sc.steps.length]);
+  }, [auto, step, sc.steps.length]);
 
-  const changeScenario = (i: number) => { setScenario(i); setStep(0); setAutoPlay(false); setDotT(1); };
-  const prevStep = () => { setStep(s => Math.max(0, s - 1)); setAutoPlay(false); };
-  const nextStep = () => { setStep(s => Math.min(sc.steps.length - 1, s + 1)); };
+  useEffect(() => {
+    if (msgBoxRef.current) msgBoxRef.current.scrollTop = msgBoxRef.current.scrollHeight;
+  }, [step]);
 
-  const encColor = (e: TlsEnc) => ({
-    plain: T.warning, handshake: T.accent, app: T.success, early: '#a855f7'
-  }[e]);
+  const advance = () => { if (step < sc.steps.length) setStep(s => s + 1); };
+  const reset   = () => { setStep(0); setSelected(null); setAuto(false); };
 
-  const et   = easeInOut(dotT);
-  const curY = stepY(step);
-  const fromX = cur.dir === 'cs' ? CX : SX;
-  const toX   = cur.dir === 'cs' ? SX : CX;
-  const dotX  = lerp(fromX, toX, et);
-  const ec    = encColor(cur.enc);
-  const H     = svgH(sc.steps.length);
+  const selMsg = selected !== null && selected < step ? sc.steps[selected] : null;
+
+  const STATUS = {
+    idle:      { color: T.textMuted,  icon: '🔒', label: 'NOT STARTED',                     sub: 'Press Step → or Auto Play to begin the TLS handshake' },
+    handshake: { color: '#d29922',    icon: '⏳', label: 'HANDSHAKE IN PROGRESS',            sub: 'Negotiating — no application data flows until the handshake completes' },
+    early:     { color: '#a855f7',    icon: '⚡', label: 'EARLY DATA FLOWING (0-RTT)',       sub: '0-RTT data sent with ClientHello — replay risk applies; use only for idempotent requests' },
+    secure:    { color: '#3fb950',    icon: '🔓', label: 'SECURE CONNECTION ESTABLISHED',    sub: `Handshake complete — application data encrypted with ${meta.version}` },
+  }[connState];
+
+  const ENTITIES = [
+    { label: 'Client', sublabel: 'Browser / App', icon: '💻', color: '#4493f8' },
+    { label: 'Server', sublabel: 'Web Server',    icon: '🖥️',  color: '#3fb950' },
+  ];
+
+  const STEP_H = 68;
 
   return (
-    <div style={{ padding: '2rem', backgroundColor: T.cardBg, borderRadius: '12px', border: T.border, color: T.textPrimary, fontFamily: 'system-ui,sans-serif' }}>
+    <div style={{ maxWidth: 900, margin: '0 auto', fontFamily: 'system-ui,-apple-system,sans-serif', color: T.textPrimary }}>
+      <style>{`
+        @keyframes tls-fade   { from{opacity:0;transform:translateY(6px)} to{opacity:1;transform:translateY(0)} }
+        @keyframes tls-ltr    { from{clip-path:inset(0 100% 0 0)} to{clip-path:inset(0 0% 0 0)} }
+        @keyframes tls-rtl    { from{clip-path:inset(0 0 0 100%)} to{clip-path:inset(0 0 0 0%)} }
+        @keyframes tls-pulse  { 0%,100%{box-shadow:0 0 0 0 #3fb95040} 50%{box-shadow:0 0 14px 4px #3fb95025} }
+        @keyframes tls-blink  { 0%,100%{opacity:1} 50%{opacity:0.4} }
+      `}</style>
 
-      <div style={{ marginBottom: '1.5rem', paddingBottom: '1rem', borderBottom: T.border }}>
-        <h3 style={{ fontSize: '1.25rem', fontWeight: 700, margin: '0 0 4px' }}>TLS Handshake Visualiser</h3>
-        <p style={{ color: T.textSecondary, margin: 0, fontSize: '0.875rem' }}>Step through TLS 1.3 and TLS 1.2 handshakes and see exactly which messages are encrypted, when keys are derived, and why TLS 1.3 is faster and more secure.</p>
-      </div>
-
-      {/* Scenario tabs */}
-      <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap', marginBottom: '1.25rem', alignItems: 'center' }}>
-        {SCENARIOS.map((s, i) => (
-          <button key={i} onClick={() => changeScenario(i)}
-            style={{ padding: '6px 14px', borderRadius: '6px', border: `1px solid ${scenario === i ? T.accent : T.borderColor}`, backgroundColor: scenario === i ? T.accentSubtle : T.panelBg, color: scenario === i ? T.accent : T.textSecondary, fontWeight: 600, fontSize: '0.78rem', cursor: 'pointer' }}>
-            {s.name}
-          </button>
-        ))}
-        <span style={{ marginLeft: 'auto', fontSize: '0.75rem', color: T.textMuted, fontStyle: 'italic' }}>{sc.desc}</span>
-      </div>
-
-      {/* Enc legend */}
-      <div style={{ display: 'flex', gap: '12px', flexWrap: 'wrap', marginBottom: '1rem' }}>
-        {(['plain', 'handshake', 'app', 'early'] as TlsEnc[]).map(e => (
-          <div key={e} style={{ display: 'flex', alignItems: 'center', gap: '5px', fontSize: '0.72rem', color: T.textMuted }}>
-            <div style={{ width: 28, height: 3, backgroundColor: encColor(e), borderRadius: 2, opacity: e === 'plain' ? 0.7 : 1 }} />
-            {ENC_LABEL[e]}
+      {/* ── Header ── */}
+      <div style={{ background:`linear-gradient(135deg,${T.cardBg} 0%,${T.panelBg} 100%)`, borderBottom:`1px solid ${T.borderColor}`, padding:'1.5rem 2rem', marginBottom:'1.5rem', position:'relative', overflow:'hidden' }}>
+        <div style={{ position:'absolute', top:0, left:0, right:0, height:3, background:'linear-gradient(90deg,#4493f8,#3fb950,#a855f7)' }} />
+        <div style={{ display:'flex', alignItems:'flex-start', gap:'1.25rem', flexWrap:'wrap' }}>
+          <div style={{ width:52, height:52, borderRadius:14, background:'#4493f815', border:'1px solid #4493f830', display:'flex', alignItems:'center', justifyContent:'center', fontSize:'1.5rem', flexShrink:0 }}>🔐</div>
+          <div style={{ flex:1, minWidth:200 }}>
+            <div style={{ display:'flex', alignItems:'center', gap:10, flexWrap:'wrap', marginBottom:6 }}>
+              <h2 style={{ margin:0, fontSize:'1.35rem', fontWeight:800, letterSpacing:'-0.02em' }}>TLS Handshake Visualiser</h2>
+              <span style={{ fontSize:'0.6rem', fontWeight:800, padding:'2px 8px', borderRadius:20, background:`${T.success}20`, color:T.success, border:`1px solid ${T.success}40`, textTransform:'uppercase', letterSpacing:'0.07em' }}>Free</span>
+            </div>
+            <p style={{ margin:0, color:T.textSecondary, fontSize:'0.84rem', lineHeight:1.5 }}>Step through TLS 1.3 and TLS 1.2 handshakes and see exactly which messages are encrypted, when keys are derived, and why 1.3 is faster and more secure.</p>
           </div>
-        ))}
-      </div>
-
-      {/* Sequence diagram SVG */}
-      <div style={{ backgroundColor: T.insetBg, borderRadius: '10px', border: T.border, overflow: 'hidden', marginBottom: '1rem' }}>
-        <svg viewBox={`0 0 660 ${H}`} style={{ width: '100%', display: 'block' }}>
-
-          {/* Client / Server nodes */}
-          <rect x={CX - 55} y={10} width={110} height={36} rx={7}
-            fill={isDarkMode ? '#161b22' : '#ffffff'} stroke={T.accent} strokeWidth={1.5} />
-          <text x={CX} y={33} textAnchor="middle" fill={T.accent} fontSize={11} fontWeight="700" fontFamily="system-ui,sans-serif">CLIENT</text>
-
-          <rect x={SX - 55} y={10} width={110} height={36} rx={7}
-            fill={isDarkMode ? '#161b22' : '#ffffff'} stroke={T.success} strokeWidth={1.5} />
-          <text x={SX} y={33} textAnchor="middle" fill={T.success} fontSize={11} fontWeight="700" fontFamily="system-ui,sans-serif">SERVER</text>
-
-          {/* Timeline bars */}
-          <line x1={CX} y1={46} x2={CX} y2={H - 10} stroke={T.borderColor} strokeWidth={1.5} strokeDasharray="3 3" opacity={0.5} />
-          <line x1={SX} y1={46} x2={SX} y2={H - 10} stroke={T.borderColor} strokeWidth={1.5} strokeDasharray="3 3" opacity={0.5} />
-
-          {/* All steps */}
-          {sc.steps.map((s, i) => {
-            const y = stepY(i);
-            const isDone = i < step;
-            const isCur  = i === step;
-            const isFut  = i > step;
-            const fX = s.dir === 'cs' ? CX : SX;
-            const tX = s.dir === 'cs' ? SX : CX;
-            const col = encColor(s.enc);
-            const op  = isDone ? 0.45 : isCur ? 1 : 0.2;
-
-            return (
-              <g key={i} onClick={() => { setStep(i); setAutoPlay(false); }} style={{ cursor: 'pointer' }}>
-                {/* Key derivation line */}
-                {s.keyEvent && (
-                  <g opacity={isDone || isCur ? 0.85 : 0.2}>
-                    <line x1={60} y1={y - 12} x2={600} y2={y - 12} stroke={s.keyEvent.color} strokeWidth={1} strokeDasharray="6 4" />
-                    <rect x={200} y={y - 22} width={260} height={14} rx={3} fill={s.keyEvent.color} opacity={0.15} />
-                    <text x={330} y={y - 12} textAnchor="middle" fill={s.keyEvent.color} fontSize={8} fontWeight="700" fontFamily="monospace" dominantBaseline="middle">{s.keyEvent.label}</text>
-                  </g>
-                )}
-
-                {/* Arrow */}
-                <defs>
-                  <marker id={`ah-${i}`} markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto">
-                    <path d="M 0 1 L 7 4 L 0 7 z" fill={col} opacity={op} />
-                  </marker>
-                </defs>
-                <line x1={fX} y1={y} x2={tX} y2={y}
-                  stroke={col} strokeWidth={isCur ? 2 : 1.5}
-                  strokeDasharray={s.enc === 'plain' ? '5 4' : 'none'}
-                  opacity={op}
-                  markerEnd={`url(#ah-${i})`} />
-
-                {/* Message label */}
-                <rect x={263} y={y - 11} width={134} height={20} rx={4}
-                  fill={isDarkMode ? '#161b22' : '#ffffff'} opacity={isFut ? 0.5 : 0.95} />
-                <text x={330} y={y + 4} textAnchor="middle" fill={isCur ? col : (isDone ? col : T.textMuted)}
-                  fontSize={isCur ? 9.5 : 8.5} fontWeight={isCur ? '800' : '600'} fontFamily="monospace"
-                  opacity={op * (isFut ? 0.6 : 1)}>
-                  {s.name}
-                </text>
-
-                {/* Enc badge */}
-                {(isCur || isDone) && (
-                  <text x={s.dir === 'cs' ? 145 : 510} y={y + 4} textAnchor="middle" fill={col}
-                    fontSize={7.5} fontWeight="700" fontFamily="monospace" opacity={op}>
-                    {ENC_LABEL[s.enc]}
-                  </text>
-                )}
-              </g>
-            );
-          })}
-
-          {/* Animated dot */}
-          {dotT > 0 && dotT < 1 && (
-            <>
-              <circle cx={dotX} cy={curY} r={9}  fill={ec} opacity={0.12} />
-              <circle cx={dotX} cy={curY} r={5}  fill={ec} opacity={0.35} />
-              <circle cx={dotX} cy={curY} r={2.5} fill={ec} />
-            </>
-          )}
-
-          {/* Step counter */}
-          <text x={12} y={H - 6} fill={T.textMuted} fontSize={9} fontFamily="monospace">
-            Step {step + 1}/{sc.steps.length}
-          </text>
-        </svg>
-      </div>
-
-      {/* Controls */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '1rem', flexWrap: 'wrap' }}>
-        <button onClick={prevStep} disabled={step === 0}
-          style={{ padding: '6px 14px', borderRadius: '6px', border: T.border, backgroundColor: T.panelBg, color: T.textPrimary, fontWeight: 600, fontSize: '0.8rem', cursor: step === 0 ? 'not-allowed' : 'pointer', opacity: step === 0 ? 0.4 : 1 }}>
-          Prev
-        </button>
-        <button onClick={() => { if (step === sc.steps.length - 1) { setStep(0); setAutoPlay(true); } else setAutoPlay(a => !a); }}
-          style={{ padding: '6px 18px', borderRadius: '6px', border: 'none', backgroundColor: autoPlay ? T.warning : T.accent, color: '#fff', fontWeight: 700, fontSize: '0.8rem', cursor: 'pointer' }}>
-          {autoPlay ? 'Pause' : step === sc.steps.length - 1 ? 'Replay' : 'Play'}
-        </button>
-        <button onClick={nextStep} disabled={step === sc.steps.length - 1}
-          style={{ padding: '6px 14px', borderRadius: '6px', border: T.border, backgroundColor: T.panelBg, color: T.textPrimary, fontWeight: 600, fontSize: '0.8rem', cursor: step === sc.steps.length - 1 ? 'not-allowed' : 'pointer', opacity: step === sc.steps.length - 1 ? 0.4 : 1 }}>
-          Next
-        </button>
-        <div style={{ display: 'flex', gap: 4, marginLeft: 'auto', flexWrap: 'wrap' }}>
-          {sc.steps.map((_, i) => (
-            <button key={i} onClick={() => { setStep(i); setAutoPlay(false); }}
-              style={{ width: 10, height: 10, borderRadius: '50%', border: 'none', cursor: 'pointer', padding: 0,
-                backgroundColor: i === step ? ec : i < step ? `${ec}55` : T.borderColor, transition: 'background-color 0.15s' }} />
-          ))}
-        </div>
-      </div>
-
-      {/* Detail panels */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(280px,1fr))', gap: '1rem' }}>
-
-        {/* Step explanation */}
-        <div style={{ backgroundColor: T.panelBg, borderRadius: '8px', padding: '1.1rem', border: T.border }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '8px', flexWrap: 'wrap' }}>
-            <span style={{ fontSize: '0.65rem', fontWeight: 800, color: ec, backgroundColor: `${ec}18`, padding: '2px 8px', borderRadius: '10px', letterSpacing: '0.06em' }}>
-              {ENC_LABEL[cur.enc]}
-            </span>
-            <span style={{ fontSize: '0.65rem', fontWeight: 700, color: T.textMuted, backgroundColor: T.insetBg, padding: '2px 8px', borderRadius: '10px' }}>
-              {cur.dir === 'cs' ? 'CLIENT → SERVER' : 'SERVER → CLIENT'}
-            </span>
-          </div>
-          <div style={{ fontSize: '0.9rem', fontWeight: 700, color: T.textPrimary, marginBottom: '6px' }}>{cur.title}</div>
-          <p style={{ margin: 0, fontSize: '0.82rem', color: T.textSecondary, lineHeight: 1.65 }}>{cur.detail}</p>
-        </div>
-
-        {/* Fields panel */}
-        <div style={{ backgroundColor: T.termBg, borderRadius: '8px', padding: '1rem', border: `1px solid ${T.termBorder}` }}>
-          <div style={{ fontSize: '0.65rem', fontFamily: 'monospace', color: T.termMuted, fontWeight: 700, borderBottom: `1px solid ${T.termBorder}`, paddingBottom: '5px', marginBottom: '8px', letterSpacing: '0.06em' }}>
-            MESSAGE FIELDS
-          </div>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-            {cur.fields.map((f, i) => (
-              <div key={i} style={{ display: 'flex', gap: '8px', fontSize: '0.76rem', lineHeight: 1.5 }}>
-                <span style={{ color: T.termMuted, fontFamily: 'monospace', flexShrink: 0, minWidth: 140 }}>{f.k}:</span>
-                <span style={{ color: f.v.includes('VISIBLE') || f.v.includes('Replay') ? T.danger : f.v.includes('Yes') ? T.success : T.termText, fontFamily: 'monospace', wordBreak: 'break-all' }}>{f.v}</span>
+          <div style={{ display:'flex', gap:'1.25rem' }}>
+            {[{label:'Steps', val:String(sc.steps.length)},{label:'Round Trips',val:meta.rtt},{label:'Version',val:meta.version}].map(s => (
+              <div key={s.label} style={{ textAlign:'center' }}>
+                <div style={{ fontSize:'1.1rem', fontWeight:800, color:'#4493f8' }}>{s.val}</div>
+                <div style={{ fontSize:'0.6rem', color:T.textMuted, fontWeight:600, textTransform:'uppercase', letterSpacing:'0.05em' }}>{s.label}</div>
               </div>
             ))}
           </div>
-          {cur.keyEvent && (
-            <div style={{ marginTop: '10px', padding: '6px 10px', backgroundColor: `${cur.keyEvent.color}18`, borderRadius: '5px', border: `1px solid ${cur.keyEvent.color}40`, fontSize: '0.75rem', color: cur.keyEvent.color, fontWeight: 700 }}>
-              {cur.keyEvent.label}
-            </div>
-          )}
         </div>
       </div>
 
-      {/* Theory footer */}
-      <div style={{ borderTop: T.border, paddingTop: '1.1rem', marginTop: '1.25rem', display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(220px,1fr))', gap: '1rem' }}>
-        <div>
-          <h4 style={{ margin: '0 0 5px', fontSize: '0.875rem', fontWeight: 700, color: T.accent }}>Why 1-RTT matters</h4>
-          <p style={{ margin: 0, color: T.textSecondary, fontSize: '0.8rem', lineHeight: 1.6 }}>TLS 1.2 required 2 full round trips before any application data could flow. On a 50ms RTT connection (e.g. London to New York), that adds 100ms to every new HTTPS connection. TLS 1.3 reduced this to 1 RTT, and 0-RTT session resumption effectively eliminates it for repeat connections.</p>
+      <div style={{ padding:'0 2rem 2rem' }}>
+
+        {/* ── Controls ── */}
+        <div style={{ display:'flex', gap:'0.5rem', flexWrap:'wrap', marginBottom:'1.25rem', alignItems:'center', background:T.cardBg, border:`1px solid ${T.borderColor}`, borderRadius:12, padding:'0.75rem 1rem' }}>
+          <span style={{ fontSize:'0.7rem', fontWeight:700, color:T.textMuted, textTransform:'uppercase', letterSpacing:'0.07em' }}>Scenario:</span>
+          {SCENARIOS.map((s, i) => (
+            <button key={i} onClick={() => setScenario(i)} style={{ cursor:'pointer', padding:'0.3rem 0.9rem', borderRadius:8, border:`1px solid ${scenario===i ? T.accent : T.borderColor}`, background:scenario===i ? T.accentSubtle : T.panelBg, color:scenario===i ? T.accent : T.textMuted, fontWeight:700, fontSize:'0.75rem', fontFamily:'inherit', transition:'all 0.15s' }}>
+              {s.name}
+            </button>
+          ))}
+          <div style={{ marginLeft:'auto', display:'flex', gap:'0.5rem' }}>
+            <button onClick={() => setAuto(true)} disabled={auto || step >= sc.steps.length} style={{ cursor:'pointer', background:T.accent, color:'#fff', border:'none', borderRadius:8, padding:'0.35rem 0.85rem', fontSize:'0.75rem', fontWeight:700, fontFamily:'inherit', opacity:auto||step>=sc.steps.length?0.4:1, transition:'opacity 0.2s' }}>▶ Auto Play</button>
+            <button onClick={advance} disabled={auto || step >= sc.steps.length} style={{ cursor:'pointer', background:T.panelBg, color:T.textSecondary, border:`1px solid ${T.borderColor}`, borderRadius:8, padding:'0.35rem 0.85rem', fontSize:'0.75rem', fontWeight:700, fontFamily:'inherit', opacity:auto||step>=sc.steps.length?0.4:1 }}>Step →</button>
+            <button onClick={reset} style={{ cursor:'pointer', background:T.panelBg, color:T.textMuted, border:`1px solid ${T.borderColor}`, borderRadius:8, padding:'0.35rem 0.75rem', fontSize:'0.75rem', fontFamily:'inherit' }}>↺ Reset</button>
+          </div>
         </div>
-        <div>
-          <h4 style={{ margin: '0 0 5px', fontSize: '0.875rem', fontWeight: 700, color: T.success }}>Forward secrecy</h4>
-          <p style={{ margin: 0, color: T.textSecondary, fontSize: '0.8rem', lineHeight: 1.6 }}>TLS 1.3 mandates ephemeral key exchange (ECDHE). The ECDH private keys are generated fresh for each session and discarded after use. If an attacker records encrypted traffic today and later steals the server's RSA private key, they still cannot decrypt past sessions — the session keys depended on a key that no longer exists.</p>
+
+        {/* ── Connection Status Banner ── */}
+        <div style={{ marginBottom:'1.25rem', padding:'0.75rem 1.25rem', borderRadius:12, background:`${STATUS.color}12`, border:`1px solid ${STATUS.color}40`, display:'flex', alignItems:'center', gap:12, transition:'all 0.4s' }}>
+          <span style={{ fontSize:'1.4rem', lineHeight:1, ...(connState==='handshake'?{animation:'tls-blink 1.2s infinite'}:{}) }}>{STATUS.icon}</span>
+          <div style={{ flex:1 }}>
+            <div style={{ fontWeight:800, fontSize:'0.82rem', color:STATUS.color, letterSpacing:'0.05em' }}>{STATUS.label}</div>
+            <div style={{ fontSize:'0.7rem', color:T.textMuted, marginTop:2 }}>{STATUS.sub}</div>
+          </div>
+          {/* Enc legend */}
+          <div style={{ display:'flex', gap:'0.75rem', flexShrink:0, flexWrap:'wrap' }}>
+            {(['plain','handshake','app','early'] as TlsEnc[]).map(e => (
+              <div key={e} style={{ display:'flex', alignItems:'center', gap:4 }}>
+                <div style={{ width:18, height:3, background:encColor(e, T), borderRadius:2, opacity:e==='plain'?0.7:1 }} />
+                <span style={{ fontSize:'0.58rem', color:T.textMuted, fontWeight:600 }}>{ENC_LABEL[e]}</span>
+              </div>
+            ))}
+          </div>
         </div>
-        <div>
-          <h4 style={{ margin: '0 0 5px', fontSize: '0.875rem', fontWeight: 700, color: T.warning }}>Certificate chain validation</h4>
-          <p style={{ margin: 0, color: T.textSecondary, fontSize: '0.8rem', lineHeight: 1.6 }}>Clients trust a set of Root CAs pre-installed in the OS or browser. The server's certificate must chain up to one of those roots via intermediate CAs. Each link is verified by checking the digital signature of the issuer. OCSP stapling lets the server include a timestamped revocation proof so the client does not need to make a separate revocation check.</p>
+
+        {/* ── Sequence Diagram ── */}
+        <div ref={msgBoxRef} style={{ background:T.cardBg, border:`1px solid ${T.borderColor}`, borderRadius:14, padding:'1.25rem', marginBottom:'1.25rem', ...(connState==='secure'?{animation:'tls-pulse 2s ease-out 1'}:{}) }}>
+
+          {/* Entity headers */}
+          <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:'0.5rem', marginBottom:'0.75rem' }}>
+            {ENTITIES.map((e, ei) => {
+              const lastMsg = step > 0 ? sc.steps[step-1] : null;
+              const isActive = lastMsg !== null && ((ei === 0 && lastMsg.dir === 'cs') || (ei === 1 && lastMsg.dir === 'sc') || (ei === 0 && lastMsg.dir === 'sc') || (ei === 1 && lastMsg.dir === 'cs'));
+              const isSender = lastMsg !== null && ((ei === 0 && lastMsg.dir === 'cs') || (ei === 1 && lastMsg.dir === 'sc'));
+              return (
+                <div key={e.label} style={{ display:'flex', flexDirection:'column', alignItems:'center', gap:5, padding:'0.5rem' }}>
+                  <div style={{ width:52, height:52, borderRadius:14, background:`${e.color}15`, border:`2px solid ${isActive ? e.color : e.color+'40'}`, display:'flex', alignItems:'center', justifyContent:'center', fontSize:'1.4rem', transition:'all 0.3s', ...(isSender?{boxShadow:`0 0 16px ${e.color}40`}:{}) }}>
+                    {e.icon}
+                  </div>
+                  <span style={{ fontSize:'0.72rem', fontWeight:700, color:T.textPrimary }}>{e.label}</span>
+                  <span style={{ fontSize:'0.6rem', color:T.textMuted }}>{e.sublabel}</span>
+                </div>
+              );
+            })}
+          </div>
+
+          {/* Lifelines + messages */}
+          <div style={{ position:'relative', minHeight: step > 0 ? step * STEP_H : 52 }}>
+            {/* Two lifelines at 25% and 75% */}
+            {[25, 75].map(pos => (
+              <div key={pos} style={{ position:'absolute', left:`${pos}%`, top:0, bottom:0, width:1, background:T.borderColor, opacity:0.35, transform:'translateX(-50%)' }} />
+            ))}
+
+            {step === 0 && (
+              <div style={{ position:'absolute', inset:0, display:'flex', alignItems:'center', justifyContent:'center' }}>
+                <span style={{ color:T.textMuted, fontSize:'0.82rem' }}>Press Step → or Auto Play to begin the TLS handshake</span>
+              </div>
+            )}
+
+            {sc.steps.slice(0, step).map((m, i) => {
+              const isLTR = m.dir === 'cs';
+              const col   = encColor(m.enc, T);
+              const isSel = selected === i;
+
+              // Arrow spans from 25% to 75%
+              const arrowLeft  = 25;
+              const arrowWidth = 50;
+              const labelCenter = 50;
+
+              return (
+                <div key={i} onClick={() => setSelected(isSel ? null : i)} style={{ position:'absolute', top: i * STEP_H, left:0, right:0, height: STEP_H - 4, cursor:'pointer', animation:'tls-fade 0.3s ease-out' }}>
+                  {/* Arrow line */}
+                  <div style={{ position:'absolute', top:'40%', left:`${arrowLeft}%`, width:`${arrowWidth}%`, height:2, transform:'translateY(-50%)', animation: isLTR ? 'tls-ltr 0.25s ease-out' : 'tls-rtl 0.25s ease-out' }}>
+                    <div style={{ width:'100%', height:'100%', background: isSel ? col : col+'90', transition:'background 0.15s',
+                      ...(m.enc === 'plain' ? { backgroundImage:`repeating-linear-gradient(90deg,${isSel?col:col+'90'} 0,${isSel?col:col+'90'} 6px,transparent 6px,transparent 10px)`, background:'transparent' } : {}) }} />
+                    {/* Arrowhead */}
+                    <div style={{ position:'absolute', ...(isLTR?{right:-1}:{left:-1}), top:'50%', transform:'translateY(-50%)', width:0, height:0, borderTop:'4px solid transparent', borderBottom:'4px solid transparent', ...(isLTR?{borderLeft:`6px solid ${isSel?col:col+'90'}`}:{borderRight:`6px solid ${isSel?col:col+'90'}`}) }} />
+                  </div>
+
+                  {/* Label above arrow */}
+                  <div style={{ position:'absolute', bottom:'55%', left:`${labelCenter}%`, transform:'translate(-50%,-2px)', whiteSpace:'nowrap', textAlign:'center' }}>
+                    <span style={{ fontSize:'0.68rem', fontWeight:700, color:isSel?col:T.textPrimary, background:isSel?`${col}18`:T.cardBg, padding:'1px 6px', borderRadius:4, border:isSel?`1px solid ${col}40`:'1px solid transparent', transition:'all 0.15s' }}>{m.name}</span>
+                  </div>
+
+                  {/* Type badge + sublabel below arrow */}
+                  <div style={{ position:'absolute', top:'48%', left:`${labelCenter}%`, transform:'translate(-50%,6px)', whiteSpace:'nowrap', textAlign:'center', display:'flex', alignItems:'center', gap:4, justifyContent:'center' }}>
+                    <span style={{ fontSize:'0.55rem', fontWeight:800, padding:'1px 5px', borderRadius:3, background:`${col}20`, color:col, border:`1px solid ${col}30` }}>{ENC_LABEL[m.enc]}</span>
+                    {m.keyEvent && <span style={{ fontSize:'0.55rem', fontWeight:800, padding:'1px 5px', borderRadius:3, background:`${m.keyEvent.color}20`, color:m.keyEvent.color, border:`1px solid ${m.keyEvent.color}30` }}>🔑 {m.keyEvent.label}</span>}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+
+          {/* Progress dots */}
+          <div style={{ display:'flex', justifyContent:'center', gap:4, marginTop:'0.75rem', paddingTop:'0.75rem', borderTop:`1px solid ${T.borderColor}` }}>
+            {sc.steps.map((s, i) => {
+              const col = encColor(s.enc, T);
+              return <div key={i} style={{ width:7, height:7, borderRadius:'50%', background: i < step ? col : T.borderColor, transition:'background 0.3s', cursor:'pointer' }} onClick={() => { setStep(i+1); setSelected(i); setAuto(false); }} />;
+            })}
+          </div>
         </div>
+
+        {/* ── Detail Panel ── */}
+        {selMsg && (
+          <div style={{ borderRadius:12, overflow:'hidden', border:`1px solid ${TYPE_COLORS[selMsg.enc]}50`, marginBottom:'1.25rem', animation:'tls-fade 0.2s ease-out' }}>
+            {/* Terminal title bar */}
+            <div style={{ background:'#1a1a2e', padding:'0.55rem 1rem', display:'flex', alignItems:'center', gap:8 }}>
+              <div style={{ display:'flex', gap:5 }}>
+                {['#ff5f56','#ffbd2e','#27c93f'].map(c => <div key={c} style={{ width:9,height:9,borderRadius:'50%',background:c }} />)}
+              </div>
+              <span style={{ fontSize:'0.58rem', fontWeight:800, padding:'2px 7px', borderRadius:20, background:`${TYPE_COLORS[selMsg.enc]}25`, color:TYPE_COLORS[selMsg.enc], border:`1px solid ${TYPE_COLORS[selMsg.enc]}40`, textTransform:'uppercase', flexShrink:0 }}>{ENC_LABEL[selMsg.enc]}</span>
+              <span style={{ fontFamily:'monospace', fontSize:'0.65rem', color:'#8b949e', flex:1, overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>{selMsg.name}</span>
+              <span style={{ fontFamily:'monospace', fontSize:'0.62rem', color:TYPE_COLORS[selMsg.enc], flexShrink:0 }}>{selMsg.dir === 'cs' ? 'CLIENT → SERVER' : 'SERVER → CLIENT'}</span>
+            </div>
+            <div style={{ background:'#0d1117', padding:'0.9rem 1.25rem' }}>
+              <div style={{ fontSize:'0.85rem', fontWeight:700, color:'#e6edf3', marginBottom:'0.6rem' }}>{selMsg.title}</div>
+              <p style={{ margin:'0 0 0.9rem', fontSize:'0.77rem', color:'#c9d1d9', lineHeight:1.75 }}>{selMsg.detail}</p>
+              <div style={{ display:'flex', flexDirection:'column', gap:'5px' }}>
+                {selMsg.fields.map((f, fi) => (
+                  <div key={fi} style={{ display:'grid', gridTemplateColumns:'170px 1fr', gap:'0 0.75rem', padding:'0.25rem 0', borderBottom:'1px solid #ffffff10' }}>
+                    <span style={{ fontSize:'0.68rem', color:'#7ee787', fontFamily:'monospace' }}>{f.k}:</span>
+                    <span style={{ fontSize:'0.68rem', color: f.v.includes('VISIBLE') || f.v.includes('Replay') ? '#f85149' : f.v.startsWith('Yes') ? '#3fb950' : '#ffa657', fontFamily:'monospace', wordBreak:'break-all' }}>{f.v}</span>
+                  </div>
+                ))}
+              </div>
+              {selMsg.keyEvent && (
+                <div style={{ marginTop:'0.75rem', padding:'0.5rem 0.75rem', background:`${selMsg.keyEvent.color}18`, border:`1px solid ${selMsg.keyEvent.color}40`, borderRadius:6, fontSize:'0.75rem', color:selMsg.keyEvent.color, fontWeight:700 }}>
+                  🔑 {selMsg.keyEvent.label}
+                </div>
+              )}
+            </div>
+          </div>
+        )}
+
+        {/* ── Comparison Table ── */}
+        <div style={{ background:T.cardBg, border:`1px solid ${T.borderColor}`, borderRadius:14, overflow:'hidden', marginBottom:'1.25rem' }}>
+          <div style={{ padding:'0.9rem 1.25rem', borderBottom:`1px solid ${T.borderColor}`, background:T.panelBg, display:'flex', alignItems:'center', gap:8 }}>
+            <span style={{ fontSize:'0.75rem', fontWeight:700, color:T.textPrimary }}>TLS 1.3 vs TLS 1.2</span>
+            <span style={{ fontSize:'0.65rem', color:T.textMuted }}>— key differences for the exam</span>
+          </div>
+          <div style={{ display:'grid', gridTemplateColumns:'1.4fr 1fr 1fr', gap:0 }}>
+            {[
+              ['',                        'TLS 1.3',                   'TLS 1.2 (legacy)'],
+              ['Round trips (RTT)',        '1 (or 0 with 0-RTT)',       '2'],
+              ['Certificate visibility',  '✅ Encrypted',              '❌ Plaintext'],
+              ['Key exchange',            'ECDHE only (mandatory)',     'ECDHE or RSA'],
+              ['Forward secrecy',         '✅ Always',                 '⚠️ Only with ECDHE'],
+              ['Weak ciphers',            '✅ Removed (RC4, 3DES)',    '❌ Still negotiable'],
+              ['Key derivation',          'HKDF (single extract-expand)','PRF (master secret)'],
+            ].map((row, ri) =>
+              row.map((cell, ci) => (
+                <div key={`${ri}-${ci}`} style={{ padding:'0.45rem 0.75rem', borderBottom:`1px solid ${T.borderColor}`, borderRight:ci<2?`1px solid ${T.borderColor}`:'none', fontSize:ci===0?'0.72rem':'0.75rem', fontWeight:ri===0||ci===0?700:400, color:ri===0?T.textMuted:ci===0?T.textSecondary:T.textPrimary, background:ri===0?T.panelBg:ci===1&&scenario!==2?`${T.accent}08`:ci===2&&scenario===2?`${T.accent}08`:'transparent', textTransform:ri===0?'uppercase':'none', letterSpacing:ri===0?'0.05em':'normal', transition:'background 0.2s' }}>
+                  {cell}
+                </div>
+              ))
+            )}
+          </div>
+        </div>
+
+        <LabEduPanel cards={TLS_EDU} isDarkMode={isDarkMode} />
       </div>
     </div>
   );
