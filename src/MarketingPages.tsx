@@ -1,4 +1,4 @@
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 
 const ACCENT  = '#4493f8';
 const PURPLE  = '#a855f7';
@@ -19,25 +19,72 @@ function useMeta(title: string, description: string) {
 
 /* ─── Shared layout ─────────────────────────────────────────────── */
 export function Nav() {
+  const [open, setOpen] = useState(false);
+  const links: [string, string][] = [['Labs','/networking-labs'],['Guides','/guides'],['Pricing','/pricing'],['About','/about']];
   return (
-    <nav style={{ borderBottom:'1px solid #21262d', padding:'0.9rem 2rem', display:'flex', alignItems:'center', justifyContent:'space-between', position:'sticky', top:0, background:'#010409', zIndex:10, fontFamily:'system-ui,-apple-system,sans-serif' }}>
-      <a href="/" style={{ display:'flex', alignItems:'center', gap:10, textDecoration:'none' }}>
-        <div style={{ width:28, height:28, borderRadius:8, background:`linear-gradient(135deg,${ACCENT},${PURPLE})`, display:'flex', alignItems:'center', justifyContent:'center', fontSize:'0.9rem' }}>🌐</div>
-        <span style={{ fontWeight:800, fontSize:'1rem', color:'#e6edf3' }}>NetForge</span>
-      </a>
-      <div style={{ display:'flex', gap:'1.25rem', alignItems:'center' }}>
-        {[['Labs','/networking-labs'],['Guides','/guides'],['Pricing','/pricing'],['About','/about']].map(([l,h]) => (
-          <a key={h} href={h} style={{ fontSize:'0.8rem', color:'#8b949e', textDecoration:'none' }}>{l}</a>
-        ))}
-        <a href="/app" style={{ fontSize:'0.78rem', color:'#fff', textDecoration:'none', background:ACCENT, padding:'0.35rem 0.9rem', borderRadius:8, fontWeight:700 }}>Open App →</a>
+    <>
+      <style>{`
+        /* ── Global mobile resets for marketing pages ── */
+        *,*::before,*::after{box-sizing:border-box}
+        body{overflow-x:hidden}
+        /* Nav responsive */
+        .nf-nav-links{display:flex;gap:1.25rem;align-items:center}
+        .nf-nav-burger{display:none;background:none;border:none;cursor:pointer;color:#e6edf3;font-size:1.3rem;line-height:1;padding:6px 8px;border-radius:6px;min-width:44px;min-height:44px;align-items:center;justify-content:center}
+        /* Page section responsive padding */
+        .nf-section{padding-left:2rem!important;padding-right:2rem!important}
+        @media(max-width:640px){
+          .nf-nav-links{display:none}
+          .nf-nav-burger{display:flex}
+          .nf-section{padding-left:1rem!important;padding-right:1rem!important}
+          .nf-hero-pad{padding-top:2.5rem!important;padding-bottom:1.5rem!important}
+        }
+      `}</style>
+      <div style={{ position:'sticky', top:0, zIndex:10, background:'#010409', fontFamily:'system-ui,-apple-system,sans-serif' }}>
+        <nav style={{ borderBottom: open ? 'none' : '1px solid #21262d', padding:'0.75rem 1.5rem', display:'flex', alignItems:'center', justifyContent:'space-between' }}>
+          <a href="/" style={{ display:'flex', alignItems:'center', gap:10, textDecoration:'none' }}>
+            <svg width="28" height="28" viewBox="0 0 200 200" fill="none" xmlns="http://www.w3.org/2000/svg" style={{ borderRadius:8, flexShrink:0 }}>
+              <defs><linearGradient id="nfbg" x1="0" y1="0" x2="200" y2="200" gradientUnits="userSpaceOnUse"><stop offset="0%" stopColor={ACCENT}/><stop offset="100%" stopColor={PURPLE}/></linearGradient></defs>
+              <rect width="200" height="200" rx="40" fill="url(#nfbg)"/>
+              <line x1="100" y1="82" x2="100" y2="55" stroke="white" strokeWidth="10" strokeOpacity="0.75" strokeLinecap="round"/>
+              <line x1="86" y1="110" x2="62" y2="125" stroke="white" strokeWidth="10" strokeOpacity="0.75" strokeLinecap="round"/>
+              <line x1="114" y1="110" x2="138" y2="125" stroke="white" strokeWidth="10" strokeOpacity="0.75" strokeLinecap="round"/>
+              <circle cx="100" cy="42" r="13" fill="white" fillOpacity="0.85"/>
+              <circle cx="50" cy="135" r="13" fill="white" fillOpacity="0.85"/>
+              <circle cx="150" cy="135" r="13" fill="white" fillOpacity="0.85"/>
+              <circle cx="100" cy="100" r="20" fill="white"/>
+            </svg>
+            <span style={{ fontWeight:800, fontSize:'1rem', color:'#e6edf3' }}>NetForge</span>
+          </a>
+          <div className="nf-nav-links">
+            {links.map(([l,h]) => (
+              <a key={h} href={h} style={{ fontSize:'0.8rem', color:'#8b949e', textDecoration:'none' }}>{l}</a>
+            ))}
+            <a href="/app" style={{ fontSize:'0.78rem', color:'#fff', textDecoration:'none', background:ACCENT, padding:'0.35rem 0.9rem', borderRadius:8, fontWeight:700 }}>Open App →</a>
+          </div>
+          <button className="nf-nav-burger" onClick={() => setOpen(o => !o)} aria-label="Toggle menu">
+            {open ? '✕' : '☰'}
+          </button>
+        </nav>
+        {open && (
+          <div style={{ borderBottom:'1px solid #21262d', padding:'0.5rem 1.5rem 1rem', display:'flex', flexDirection:'column', gap:'0.25rem' }}>
+            {links.map(([l,h]) => (
+              <a key={h} href={h} onClick={() => setOpen(false)}
+                style={{ fontSize:'0.95rem', color:'#8b949e', textDecoration:'none', padding:'0.65rem 0', borderBottom:'1px solid #21262d40', display:'block' }}>{l}</a>
+            ))}
+            <a href="/app" onClick={() => setOpen(false)}
+              style={{ display:'block', textAlign:'center', marginTop:'0.5rem', padding:'0.75rem 1rem', background:ACCENT, color:'#fff', textDecoration:'none', borderRadius:10, fontWeight:700, fontSize:'0.9rem' }}>
+              Open App →
+            </a>
+          </div>
+        )}
       </div>
-    </nav>
+    </>
   );
 }
 
 export function Footer() {
   return (
-    <footer style={{ borderTop:'1px solid #21262d', padding:'2rem', fontFamily:'system-ui,-apple-system,sans-serif', display:'flex', flexWrap:'wrap', gap:'2rem', justifyContent:'space-between', background:'#010409' }}>
+    <footer className="nf-section" style={{ borderTop:'1px solid #21262d', paddingTop:'2rem', paddingBottom:'2rem', fontFamily:'system-ui,-apple-system,sans-serif', display:'flex', flexWrap:'wrap', gap:'2rem', justifyContent:'space-between', background:'#010409' }}>
       <div>
         <div style={{ fontWeight:800, color:'#e6edf3', marginBottom:'0.5rem' }}>NetForge</div>
         <div style={{ fontSize:'0.75rem', color:'#6e7681', maxWidth:260, lineHeight:1.7 }}>Free interactive network and security labs for CompTIA N+ and Sec+ candidates.</div>
@@ -72,10 +119,10 @@ function PageWrap({ children }: { children: React.ReactNode }) {
 
 function Hero({ badge, title, sub, cta, ctaHref, secondary, secondaryHref }: { badge?:string; title:string; sub:string; cta:string; ctaHref:string; secondary?:string; secondaryHref?:string }) {
   return (
-    <div style={{ padding:'5rem 2rem 4rem', textAlign:'center', maxWidth:760, margin:'0 auto' }}>
+    <div className="nf-hero-pad nf-section" style={{ paddingTop:'5rem', paddingBottom:'4rem', textAlign:'center', maxWidth:760, margin:'0 auto' }}>
       {badge && <div style={{ display:'inline-block', fontSize:'0.65rem', fontWeight:800, padding:'4px 12px', borderRadius:20, background:`${ACCENT}20`, color:ACCENT, border:`1px solid ${ACCENT}40`, textTransform:'uppercase', letterSpacing:'0.1em', marginBottom:'1.25rem' }}>{badge}</div>}
-      <h1 style={{ margin:'0 0 1.1rem', fontSize:'clamp(1.75rem,4vw,2.6rem)', fontWeight:900, lineHeight:1.15, letterSpacing:'-0.02em' }}>{title}</h1>
-      <p style={{ margin:'0 0 2rem', fontSize:'1.05rem', color:'#8b949e', lineHeight:1.75, maxWidth:600, marginLeft:'auto', marginRight:'auto' }}>{sub}</p>
+      <h1 style={{ margin:'0 0 1.1rem', fontSize:'clamp(1.6rem,5vw,2.6rem)', fontWeight:900, lineHeight:1.15, letterSpacing:'-0.02em' }}>{title}</h1>
+      <p style={{ margin:'0 0 2rem', fontSize:'clamp(0.9rem,2.5vw,1.05rem)', color:'#8b949e', lineHeight:1.75, maxWidth:600, marginLeft:'auto', marginRight:'auto' }}>{sub}</p>
       <div style={{ display:'flex', gap:'0.75rem', justifyContent:'center', flexWrap:'wrap' }}>
         <a href={ctaHref} style={{ padding:'0.8rem 1.75rem', background:`linear-gradient(135deg,${ACCENT},#2563eb)`, color:'#fff', textDecoration:'none', borderRadius:10, fontWeight:700, fontSize:'0.95rem', boxShadow:`0 4px 14px ${ACCENT}40` }}>{cta}</a>
         {secondary && <a href={secondaryHref} style={{ padding:'0.8rem 1.5rem', border:'1px solid #30363d', color:'#e6edf3', textDecoration:'none', borderRadius:10, fontWeight:600, fontSize:'0.95rem' }}>{secondary}</a>}
@@ -140,7 +187,7 @@ export function SubnettingPage() {
         secondaryHref="/networking-labs"
       />
 
-      <div style={{ padding:'0 2rem 4rem', maxWidth:1100, margin:'0 auto' }}>
+      <div className="nf-section" style={{ paddingTop:0, paddingBottom:'4rem', maxWidth:1100, margin:'0 auto' }}>
         <SectionHead title="What Is Subnetting?" />
         <p style={{ color:'#8b949e', lineHeight:1.8, maxWidth:720, margin:'0 auto 3rem', textAlign:'center', fontSize:'0.9rem' }}>
           Subnetting divides a large IP network into smaller, more manageable segments called subnets. Each subnet is a broadcast domain — devices can communicate directly within it, but need a router to reach other subnets. Subnetting is essential for network security, efficient IP address usage, and is heavily tested on the CompTIA Network+ (N10-009) exam.
@@ -194,7 +241,7 @@ export function NetworkPlusPage() {
         secondaryHref="/networking-labs"
       />
 
-      <div style={{ padding:'0 2rem 4rem', maxWidth:1100, margin:'0 auto' }}>
+      <div className="nf-section" style={{ paddingTop:0, paddingBottom:'4rem', maxWidth:1100, margin:'0 auto' }}>
         <SectionHead title="Exam at a Glance" />
         <Grid>
           {[
@@ -265,7 +312,7 @@ export function SecurityPlusPage() {
         secondaryHref="/pricing"
       />
 
-      <div style={{ padding:'0 2rem 4rem', maxWidth:1100, margin:'0 auto' }}>
+      <div className="nf-section" style={{ paddingTop:0, paddingBottom:'4rem', maxWidth:1100, margin:'0 auto' }}>
         <SectionHead title="Why Hands-On Practice Works" />
         <Grid>
           <Card icon="🎣" title="Phishing Simulator" body="Identify real-world phishing emails, spot spoofed domains, and analyse suspicious URLs — exactly the attack recognition skills tested in Domain 2." color={RED} />
@@ -345,7 +392,7 @@ export function LabsPage() {
         cta="Open App →"
         ctaHref="/"
       />
-      <div style={{ padding:'0 2rem 4rem', maxWidth:1100, margin:'0 auto' }}>
+      <div className="nf-section" style={{ paddingTop:0, paddingBottom:'4rem', maxWidth:1100, margin:'0 auto' }}>
         {cats.map(cat => (
           <div key={cat.name} style={{ marginBottom:'2.5rem' }}>
             <div style={{ display:'flex', alignItems:'center', gap:10, marginBottom:'1rem' }}>

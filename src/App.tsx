@@ -19,6 +19,7 @@ const GuideNPlusLazy     = p(() => import('./GuidesPages'),     'GuideNetworkPlu
 const GuideNvsS_Lazy     = p(() => import('./GuidesPages'),     'GuideNplusVsSecplus');
 const GuideVlanLazy      = p(() => import('./GuidesPages'),     'GuideWhatIsVlan');
 const GuideArpLazy       = p(() => import('./GuidesPages'),     'GuideArpPoisoning');
+const GuideCiscoLazy     = p(() => import('./GuidesPages'),     'GuideCiscoIos');
 const FaqPageLazy        = p(() => import('./GuidesPages'),     'FaqPage');
 const ContactPageLazy    = p(() => import('./GuidesPages'),     'ContactPage');
 const NotFoundLazy       = p(() => import('./NotFoundPage'),    'NotFoundPage');
@@ -39,6 +40,7 @@ const PAGE_ROUTES: Record<string, React.LazyExoticComponent<React.ComponentType>
   '/guides/network-plus-vs-security-plus':   GuideNvsS_Lazy,
   '/guides/what-is-a-vlan':                 GuideVlanLazy,
   '/guides/arp-poisoning':                  GuideArpLazy,
+  '/guides/cisco-ios-commands':             GuideCiscoLazy,
   '/faq':                                    FaqPageLazy,
   '/contact':                                ContactPageLazy,
 };
@@ -495,11 +497,22 @@ function AppInner() {
             <span>{isDark?'☀️':'🌙'}</span>
             <span>{isDark?'Light mode':'Dark mode'}</span>
           </button>
-          <a href="https://buymeacoffee.com/netforgens" target="_blank" rel="noopener noreferrer"
-            style={{ display:'flex', alignItems:'center', gap:'0.5rem', padding:'0.45rem 0.6rem', backgroundColor:'#ffdd00', border:'none', borderRadius:6, color:'#000', fontSize:'0.78rem', fontWeight:700, textDecoration:'none', cursor:'pointer' }}>
-            <span>☕</span>
-            <span>Buy me a coffee</span>
-          </a>
+          <div style={{ display:'flex', gap:'0.4rem', alignItems:'center' }}>
+            <a href="https://buymeacoffee.com/netforgens" target="_blank" rel="noopener noreferrer" title="Buy me a coffee"
+              style={{ display:'flex', alignItems:'center', justifyContent:'center', width:32, height:32, backgroundColor:'#ffdd00', border:'none', borderRadius:6, fontSize:'1rem', textDecoration:'none', cursor:'pointer' }}>
+              ☕
+            </a>
+            {[
+              { href: '#', title: 'X / Twitter',  icon: '𝕏',   bg: '#000',    fg: '#fff' },
+              { href: '#', title: 'LinkedIn',      icon: 'in',  bg: '#0a66c2', fg: '#fff' },
+              { href: '#', title: 'YouTube',       icon: '▶',   bg: '#ff0000', fg: '#fff' },
+            ].map(s => (
+              <a key={s.title} href={s.href} title={s.title} target="_blank" rel="noopener noreferrer"
+                style={{ display:'flex', alignItems:'center', justifyContent:'center', width:32, height:32, background:s.bg, borderRadius:6, fontSize:'0.7rem', fontWeight:900, color:s.fg, textDecoration:'none', cursor:'pointer', fontFamily:'system-ui,sans-serif', letterSpacing:'-0.02em' }}>
+                {s.icon}
+              </a>
+            ))}
+          </div>
           <div style={{ display:'flex', gap:'0.75rem', justifyContent:'center', paddingTop:'0.25rem' }}>
             <a href="/" style={{ fontSize:'0.65rem', color:T.textMuted, textDecoration:'none' }}>Home</a>
             <span style={{ fontSize:'0.65rem', color:T.border }}>·</span>

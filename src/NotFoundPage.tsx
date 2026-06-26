@@ -6,7 +6,7 @@ export function NotFoundPage() {
   return (
     <div style={{ minHeight: '100vh', background: '#0d1117', color: '#e6edf3', fontFamily: 'system-ui,-apple-system,sans-serif', display: 'flex', flexDirection: 'column' }}>
       <Nav />
-      <div style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '4rem 2rem', textAlign: 'center' }}>
+      <div className="nf-hero-pad nf-section" style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', paddingTop: '4rem', paddingBottom: '4rem', textAlign: 'center' }}>
         <div style={{ fontSize: 'clamp(5rem,15vw,9rem)', fontWeight: 900, color: `${ACCENT}30`, fontFamily: 'monospace', lineHeight: 1, marginBottom: '1rem' }}>404</div>
         <h1 style={{ margin: '0 0 0.75rem', fontSize: '1.75rem', fontWeight: 800, letterSpacing: '-0.02em' }}>Page not found</h1>
         <p style={{ margin: '0 0 2.5rem', color: '#8b949e', maxWidth: 400, lineHeight: 1.7 }}>

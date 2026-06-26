@@ -1,0 +1,20 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200" fill="none">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="200" y2="200" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#4493f8"/>
+      <stop offset="100%" stop-color="#a855f7"/>
+    </linearGradient>
+  </defs>
+  <!-- Background -->
+  <rect width="200" height="200" rx="40" fill="url(#bg)"/>
+  <!-- Network lines (hub → outer nodes) -->
+  <line x1="100" y1="82" x2="100" y2="55" stroke="white" stroke-width="10" stroke-opacity="0.75" stroke-linecap="round"/>
+  <line x1="86" y1="110" x2="62" y2="125" stroke="white" stroke-width="10" stroke-opacity="0.75" stroke-linecap="round"/>
+  <line x1="114" y1="110" x2="138" y2="125" stroke="white" stroke-width="10" stroke-opacity="0.75" stroke-linecap="round"/>
+  <!-- Outer nodes -->
+  <circle cx="100" cy="42" r="13" fill="white" fill-opacity="0.85"/>
+  <circle cx="50" cy="135" r="13" fill="white" fill-opacity="0.85"/>
+  <circle cx="150" cy="135" r="13" fill="white" fill-opacity="0.85"/>
+  <!-- Centre hub (larger, full opacity) -->
+  <circle cx="100" cy="100" r="20" fill="white"/>
+</svg>

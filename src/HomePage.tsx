@@ -20,7 +20,7 @@ export function HomePage() {
       <Nav />
 
       {/* ── Hero ── */}
-      <section style={{ padding: '5rem 2rem 4rem', textAlign: 'center', position: 'relative', overflow: 'hidden' }}>
+      <section className="nf-hero-pad nf-section" style={{ paddingTop: '5rem', paddingBottom: '4rem', textAlign: 'center', position: 'relative', overflow: 'hidden' }}>
         {/* Background glow */}
         <div style={{ position: 'absolute', top: '10%', left: '50%', transform: 'translateX(-50%)', width: 600, height: 300, background: `radial-gradient(ellipse at center, ${ACCENT}18 0%, transparent 70%)`, pointerEvents: 'none' }} />
         <div style={{ position: 'relative', maxWidth: 760, margin: '0 auto' }}>
@@ -48,7 +48,7 @@ export function HomePage() {
       </section>
 
       {/* ── Stats bar ── */}
-      <section style={{ borderTop: '1px solid #21262d', borderBottom: '1px solid #21262d', padding: '1.5rem 2rem' }}>
+      <section className="nf-section" style={{ borderTop: '1px solid #21262d', borderBottom: '1px solid #21262d', paddingTop: '1.5rem', paddingBottom: '1.5rem' }}>
         <div style={{ display: 'flex', justifyContent: 'center', gap: 'clamp(2rem,6vw,5rem)', flexWrap: 'wrap', maxWidth: 800, margin: '0 auto' }}>
           {[
             { value: '30+',  label: 'Interactive Labs',   color: ACCENT  },
@@ -65,7 +65,7 @@ export function HomePage() {
       </section>
 
       {/* ── Lab categories ── */}
-      <section style={{ padding: '4rem 2rem', maxWidth: 1100, margin: '0 auto', width: '100%' }}>
+      <section className="nf-section" style={{ paddingTop: '4rem', paddingBottom: '4rem', maxWidth: 1100, margin: '0 auto', width: '100%' }}>
         <div style={{ textAlign: 'center', marginBottom: '2.5rem' }}>
           <h2 style={{ margin: '0 0 0.6rem', fontSize: '1.6rem', fontWeight: 800, letterSpacing: '-0.01em' }}>Everything you need in one place</h2>
           <p style={{ margin: 0, color: '#8b949e', fontSize: '0.9rem' }}>Labs organised by topic — click any category to jump straight in</p>
@@ -89,7 +89,7 @@ export function HomePage() {
       </section>
 
       {/* ── Featured labs ── */}
-      <section style={{ padding: '0 2rem 4rem', maxWidth: 1100, margin: '0 auto', width: '100%' }}>
+      <section className="nf-section" style={{ paddingTop: 0, paddingBottom: '4rem', maxWidth: 1100, margin: '0 auto', width: '100%' }}>
         <div style={{ textAlign: 'center', marginBottom: '2rem' }}>
           <h2 style={{ margin: '0 0 0.5rem', fontSize: '1.6rem', fontWeight: 800 }}>Popular labs</h2>
           <p style={{ margin: 0, color: '#8b949e', fontSize: '0.88rem' }}>Free labs you can open right now — no account needed</p>
@@ -123,7 +123,7 @@ export function HomePage() {
       </section>
 
       {/* ── How it works ── */}
-      <section style={{ padding: '4rem 2rem', background: '#010409', borderTop: '1px solid #21262d', borderBottom: '1px solid #21262d' }}>
+      <section className="nf-section" style={{ paddingTop: '4rem', paddingBottom: '4rem', background: '#010409', borderTop: '1px solid #21262d', borderBottom: '1px solid #21262d' }}>
         <div style={{ maxWidth: 900, margin: '0 auto' }}>
           <div style={{ textAlign: 'center', marginBottom: '2.5rem' }}>
             <h2 style={{ margin: '0 0 0.5rem', fontSize: '1.6rem', fontWeight: 800 }}>Learning that actually sticks</h2>
@@ -146,7 +146,7 @@ export function HomePage() {
       </section>
 
       {/* ── Exam prep ── */}
-      <section style={{ padding: '4rem 2rem', maxWidth: 1100, margin: '0 auto', width: '100%' }}>
+      <section className="nf-section" style={{ paddingTop: '4rem', paddingBottom: '4rem', maxWidth: 1100, margin: '0 auto', width: '100%' }}>
         <div style={{ textAlign: 'center', marginBottom: '2.5rem' }}>
           <h2 style={{ margin: '0 0 0.5rem', fontSize: '1.6rem', fontWeight: 800 }}>Built for CompTIA exam prep</h2>
           <p style={{ margin: 0, color: '#8b949e', fontSize: '0.88rem' }}>Every lab maps to official exam objectives</p>
@@ -185,7 +185,7 @@ export function HomePage() {
       </section>
 
       {/* ── Pricing teaser ── */}
-      <section style={{ padding: '4rem 2rem', background: '#010409', borderTop: '1px solid #21262d', borderBottom: '1px solid #21262d' }}>
+      <section className="nf-section" style={{ paddingTop: '4rem', paddingBottom: '4rem', background: '#010409', borderTop: '1px solid #21262d', borderBottom: '1px solid #21262d' }}>
         <div style={{ maxWidth: 860, margin: '0 auto' }}>
           <div style={{ textAlign: 'center', marginBottom: '2.5rem' }}>
             <h2 style={{ margin: '0 0 0.5rem', fontSize: '1.6rem', fontWeight: 800 }}>Simple, honest pricing</h2>
@@ -215,7 +215,7 @@ export function HomePage() {
       </section>
 
       {/* ── Final CTA ── */}
-      <section style={{ padding: '5rem 2rem', textAlign: 'center' }}>
+      <section className="nf-hero-pad nf-section" style={{ paddingTop: '5rem', paddingBottom: '5rem', textAlign: 'center' }}>
         <div style={{ maxWidth: 600, margin: '0 auto' }}>
           <h2 style={{ margin: '0 0 1rem', fontSize: 'clamp(1.5rem,4vw,2.25rem)', fontWeight: 900, letterSpacing: '-0.02em' }}>Ready to start learning?</h2>
           <p style={{ margin: '0 0 2rem', color: '#8b949e', lineHeight: 1.7, fontSize: '0.95rem' }}>Every free lab is available right now — no account, no credit card, no download. Open NetForge and start in 10 seconds.</p>

@@ -22,7 +22,7 @@ function GuideLayout({ children, breadcrumb }: { children: React.ReactNode; brea
   return (
     <div style={{ minHeight: '100vh', background: '#0d1117', color: '#e6edf3', fontFamily: 'system-ui,-apple-system,sans-serif', display: 'flex', flexDirection: 'column' }}>
       <Nav />
-      <div style={{ flex: 1, maxWidth: 760, margin: '0 auto', padding: '2rem 2rem 4rem', width: '100%' }}>
+      <div className="nf-section" style={{ flex: 1, maxWidth: 760, margin: '0 auto', paddingTop: '2rem', paddingBottom: '4rem', width: '100%' }}>
         <div style={{ fontSize: '0.72rem', color: '#6e7681', marginBottom: '2rem' }}>
           <a href="/" style={{ color: '#6e7681', textDecoration: 'none' }}>Home</a>
           <span style={{ margin: '0 6px' }}>›</span>
@@ -97,6 +97,7 @@ const ALL_GUIDES = [
   { slug: '/guides/network-plus-vs-security-plus',    title: 'CompTIA N+ vs Security+ — Which First?',        desc: 'A clear comparison of both exams: content, difficulty, prerequisites, and which to tackle based on your career goal.', tag: 'Certification', color: PURPLE, icon: '🏆', readTime: '6 min read' },
   { slug: '/guides/what-is-a-vlan',                   title: 'What Is a VLAN? A Complete Explanation',        desc: 'How VLANs work, why they exist, 802.1Q tagging, access vs trunk ports, and inter-VLAN routing explained simply.',  tag: 'Switching',     color: GOLD,   icon: '🔀', readTime: '7 min read' },
   { slug: '/guides/arp-poisoning',                    title: 'What Is ARP Poisoning? How It Works & Defences', desc: 'How ARP cache poisoning works, why it\'s effective, what attackers can do with it, and how Dynamic ARP Inspection stops it.', tag: 'Security', color: RED, icon: '🕵️', readTime: '7 min read' },
+  { slug: '/guides/cisco-ios-commands',               title: 'Cisco IOS Commands — Complete Cheat Sheet',       desc: 'Essential Cisco IOS CLI commands organised by mode and function. Covers interfaces, routing, VLANs, ACLs, OSPF, and troubleshooting.', tag: 'CLI Reference', color: GOLD, icon: '💻', readTime: '10 min read' },
 ];
 
 export function GuidesIndexPage() {
@@ -107,7 +108,7 @@ export function GuidesIndexPage() {
   return (
     <div style={{ minHeight: '100vh', background: '#0d1117', color: '#e6edf3', fontFamily: 'system-ui,-apple-system,sans-serif', display: 'flex', flexDirection: 'column' }}>
       <Nav />
-      <div style={{ flex: 1, maxWidth: 900, margin: '0 auto', padding: '3rem 2rem 4rem', width: '100%' }}>
+      <div className="nf-section" style={{ flex: 1, maxWidth: 900, margin: '0 auto', paddingTop: '3rem', paddingBottom: '4rem', width: '100%' }}>
         <div style={{ marginBottom: '3rem' }}>
           <div style={{ fontSize: '0.65rem', fontWeight: 800, color: ACCENT, textTransform: 'uppercase', letterSpacing: '0.1em', marginBottom: '0.75rem' }}>Guides & Articles</div>
           <h1 style={{ margin: '0 0 0.75rem', fontSize: 'clamp(1.75rem,4vw,2.25rem)', fontWeight: 900, letterSpacing: '-0.02em' }}>Learn Networking, Deeply</h1>
@@ -508,6 +509,303 @@ interface GigabitEthernet0/1
 }
 
 /* ─────────────────────────────────────────────────────────────────
+   6. CISCO IOS COMMANDS
+───────────────────────────────────────────────────────────────── */
+export function GuideCiscoIos() {
+  useMeta(
+    'Cisco IOS Commands Cheat Sheet | NetForge',
+    'Essential Cisco IOS CLI commands for Network+ and CCNA exam prep. Covers modes, interfaces, routing, VLANs, ACLs, OSPF, and troubleshooting show commands.'
+  );
+  return (
+    <GuideLayout breadcrumb="Cisco IOS Command Reference">
+      <h1 style={{ margin: '0 0 0.5rem', fontSize: 'clamp(1.5rem,4vw,2rem)', fontWeight: 900, letterSpacing: '-0.02em' }}>
+        Cisco IOS Commands — Complete Cheat Sheet
+      </h1>
+      <GuideMeta readTime="10 min read" updated="June 2026" tag="CLI Reference" />
+
+      <P>Cisco IOS (Internetwork Operating System) is the firmware that runs on most Cisco routers and switches. All configuration happens through a hierarchical CLI — knowing which mode you're in and which commands belong to which mode is the foundation of everything that follows.</P>
+
+      <InfoBox title="Exam relevance" color={GOLD}>
+        CompTIA Network+ (N10-009) tests CLI concepts conceptually — you won't type commands but you must recognise output from <Code>show</Code> commands and understand what each does. CCNA tests actual configuration, so both syntax and purpose matter.
+      </InfoBox>
+
+      {/* ── MODES ── */}
+      <H2>IOS Modes</H2>
+      <P>IOS uses a privilege hierarchy. You move down into sub-modes to configure specific features, and back up with <Code>exit</Code> or all the way back to privileged EXEC with <Code>end</Code>.</P>
+      <Pre>{`Router>                    ! User EXEC — limited read-only commands
+Router> enable             ! → Privileged EXEC (requires enable password/secret)
+
+Router#                    ! Privileged EXEC — full show commands, copy, reload
+Router# configure terminal ! → Global configuration mode
+Router# disable            ! ← Back to User EXEC
+Router# exit               ! Disconnect session
+
+Router(config)#            ! Global configuration — hostname, routing, ACLs
+Router(config)# interface GigabitEthernet0/0   ! → Interface sub-mode
+Router(config)# router ospf 1                  ! → Router sub-mode
+Router(config)# line vty 0 4                   ! → Line sub-mode
+
+Router(config-if)#         ! Interface sub-mode
+Router(config-if)# exit    ! ← One level up (back to global config)
+Router(config-if)# end     ! ← All the way back to privileged EXEC
+Router(config-if)# Ctrl+Z  ! Same as end`}</Pre>
+
+      {/* ── MANAGEMENT ── */}
+      <H2>Management & Saving</H2>
+      <Pre>{`! Set device hostname
+Router(config)# hostname SW1
+
+! Set privileged EXEC password (encrypted — always prefer this over 'enable password')
+SW1(config)# enable secret Cisco123!
+
+! Encrypt all plaintext passwords in running-config
+SW1(config)# service password-encryption
+
+! Set a login banner
+SW1(config)# banner motd # Authorised access only. #
+
+! Save running config to NVRAM (survives reboot)
+SW1# copy running-config startup-config
+SW1# write memory          ! Shorthand for the same thing
+
+! View configs
+SW1# show running-config   ! Active config in RAM
+SW1# show startup-config   ! Config that loads on boot
+
+! Reboot the device
+SW1# reload
+
+! Show device info (IOS version, uptime, hardware)
+SW1# show version`}</Pre>
+
+      <InfoBox title="running-config vs startup-config" color={ACCENT}>
+        Changes take effect immediately in <Code>running-config</Code> (RAM) but are lost on reboot unless you save them to <Code>startup-config</Code> (NVRAM). Always <Code>copy run start</Code> after making changes you want to keep.
+      </InfoBox>
+
+      {/* ── INTERFACES ── */}
+      <H2>Interface Configuration</H2>
+      <Pre>{`! Enter interface (shorthand notation works: gi0/0, fa0/1, se0/0/0)
+Router(config)# interface GigabitEthernet0/0
+
+! Assign IP address and subnet mask
+Router(config-if)# ip address 192.168.1.1 255.255.255.0
+
+! Enable the interface (Cisco interfaces are shutdown by default on routers)
+Router(config-if)# no shutdown
+
+! Disable the interface
+Router(config-if)# shutdown
+
+! Add a human-readable description
+Router(config-if)# description Link to Core-SW1
+
+! Set duplex and speed (usually left on auto)
+Router(config-if)# duplex full
+Router(config-if)# speed 1000
+
+! Configure a loopback (always up, used for router-id and management)
+Router(config)# interface Loopback0
+Router(config-if)# ip address 1.1.1.1 255.255.255.255`}</Pre>
+      <Pre>{`! Useful show commands for interfaces
+Router# show interfaces                    ! Detailed stats for all interfaces
+Router# show interfaces GigabitEthernet0/0 ! Single interface detail
+Router# show ip interface brief            ! Summary table: IP, status, protocol
+Router# show interfaces status             ! (Switches) Port, VLAN, duplex, speed`}</Pre>
+
+      <LabCta icon="📡" name="OSI & Protocol Data Units — understand the layers behind these commands" href="/app?cat=fundamentals&tool=osiModel" color={ACCENT} />
+
+      {/* ── STATIC ROUTING ── */}
+      <H2>Static Routing</H2>
+      <Pre>{`! Syntax: ip route <network> <mask> <next-hop-ip OR exit-interface>
+Router(config)# ip route 10.0.2.0 255.255.255.0 10.0.1.2
+
+! Default route (send all unknown traffic to this next hop)
+Router(config)# ip route 0.0.0.0 0.0.0.0 203.0.113.1
+
+! Floating static route (higher AD = used only if primary route disappears)
+Router(config)# ip route 10.0.2.0 255.255.255.0 10.0.1.3 200
+
+! View the routing table
+Router# show ip route
+Router# show ip route static
+Router# show ip route 10.0.2.0    ! Show best match for specific prefix`}</Pre>
+
+      <InfoBox title="Administrative Distance" color={PURPLE}>
+        AD is the trustworthiness of a routing source. Connected = 0, Static = 1, OSPF = 110, RIP = 120, EBGP = 20. Lower wins. A floating static route uses a higher AD so a dynamic route takes precedence when available.
+      </InfoBox>
+
+      {/* ── OSPF ── */}
+      <H2>OSPF</H2>
+      <Pre>{`! Enable OSPF process (process-id is local only — doesn't need to match peers)
+Router(config)# router ospf 1
+
+! Advertise a network into OSPF (wildcard mask = inverse of subnet mask)
+Router(config-router)# network 192.168.1.0 0.0.0.255 area 0
+Router(config-router)# network 10.0.0.0 0.255.255.255 area 0
+
+! Set a stable router ID (loopback IP is preferred automatically)
+Router(config-router)# router-id 1.1.1.1
+
+! Prevent OSPF hellos on an interface (stub networks, LANs)
+Router(config-router)# passive-interface GigabitEthernet0/1
+
+! Useful OSPF show commands
+Router# show ip ospf neighbor           ! Neighbour table and state
+Router# show ip ospf interface brief    ! Which interfaces run OSPF
+Router# show ip ospf database           ! LSDB contents
+Router# show ip route ospf              ! Only OSPF-learned routes`}</Pre>
+
+      <LabCta icon="🌐" name="OSPF Visualiser Lab — watch neighbour formation and SPF live" href="/app?cat=routing&tool=ospfSim" color={PURPLE} />
+
+      {/* ── VLANS ── */}
+      <H2>VLANs & Switching</H2>
+      <Pre>{`! Create a VLAN and give it a name (on a switch)
+Switch(config)# vlan 10
+Switch(config-vlan)# name Sales
+
+Switch(config)# vlan 20
+Switch(config-vlan)# name Engineering
+
+! Access port — assigns a single VLAN to an end-device port
+Switch(config)# interface GigabitEthernet0/1
+Switch(config-if)# switchport mode access
+Switch(config-if)# switchport access vlan 10
+
+! Trunk port — carries multiple VLANs between switches / to routers
+Switch(config)# interface GigabitEthernet0/24
+Switch(config-if)# switchport mode trunk
+Switch(config-if)# switchport trunk encapsulation dot1q  ! (required on older IOSv)
+Switch(config-if)# switchport trunk allowed vlan 10,20   ! Restrict which VLANs
+
+! Show VLAN info
+Switch# show vlan brief               ! VLAN IDs, names, and assigned ports
+Switch# show interfaces trunk         ! Trunk ports and allowed VLANs
+Switch# show interfaces GigabitEthernet0/1 switchport  ! Port mode detail`}</Pre>
+
+      <Pre>{`! Router-on-a-stick inter-VLAN routing (sub-interfaces on a router)
+Router(config)# interface GigabitEthernet0/0.10
+Router(config-subif)# encapsulation dot1Q 10
+Router(config-subif)# ip address 192.168.10.1 255.255.255.0
+
+Router(config)# interface GigabitEthernet0/0.20
+Router(config-subif)# encapsulation dot1Q 20
+Router(config-subif)# ip address 192.168.20.1 255.255.255.0`}</Pre>
+
+      <LabCta icon="🔀" name="VLAN Configuration Lab — configure access/trunk ports interactively" href="/app?cat=switching&tool=vlanMap" color={GOLD} />
+
+      {/* ── ACLs ── */}
+      <H2>Access Control Lists (ACLs)</H2>
+      <P>ACLs filter traffic. Standard ACLs match on source IP only; extended ACLs match source, destination, protocol, and port. Place standard ACLs close to the destination, extended ACLs close to the source.</P>
+      <Pre>{`! Standard numbered ACL (1–99, 1300–1999)
+Router(config)# access-list 10 permit 192.168.1.0 0.0.0.255
+Router(config)# access-list 10 deny any   ! Implicit deny exists anyway
+
+! Extended numbered ACL (100–199, 2000–2699)
+! Syntax: access-list <number> <permit|deny> <protocol> <src> <dst> [operator port]
+Router(config)# access-list 101 permit tcp 192.168.1.0 0.0.0.255 any eq 80
+Router(config)# access-list 101 permit tcp 192.168.1.0 0.0.0.255 any eq 443
+Router(config)# access-list 101 deny ip any any
+
+! Named ACL (easier to edit — can delete individual lines)
+Router(config)# ip access-list extended BLOCK-TELNET
+Router(config-ext-nacl)# deny tcp any any eq 23
+Router(config-ext-nacl)# permit ip any any
+
+! Apply ACL to an interface (in = inbound traffic, out = outbound)
+Router(config)# interface GigabitEthernet0/0
+Router(config-if)# ip access-group 101 in
+Router(config-if)# ip access-group BLOCK-TELNET out
+
+! View ACLs
+Router# show ip access-lists          ! All ACLs with hit counts
+Router# show ip interface GigabitEthernet0/0  ! Which ACLs applied to interface`}</Pre>
+
+      {/* ── SSH & LINES ── */}
+      <H2>SSH & Remote Access</H2>
+      <Pre>{`! Configure SSH (requires hostname + domain name first)
+Router(config)# hostname R1
+Router(config)# ip domain-name netforge.lab
+Router(config)# crypto key generate rsa modulus 2048
+Router(config)# ip ssh version 2
+
+! Set VTY lines to accept SSH only (lines 0–4 = 5 simultaneous sessions)
+Router(config)# line vty 0 4
+Router(config-line)# transport input ssh
+Router(config-line)# login local
+
+! Create a local user for SSH login
+Router(config)# username admin privilege 15 secret Cisco123!
+
+! Disable Telnet on console for security
+Router(config)# line console 0
+Router(config-line)# login local
+Router(config-line)# exec-timeout 10 0   ! Auto-logout after 10 min idle`}</Pre>
+
+      {/* ── TROUBLESHOOTING ── */}
+      <H2>Troubleshooting Commands</H2>
+      <Pre>{`! Connectivity tests
+Router# ping 8.8.8.8
+Router# ping 192.168.1.1 source GigabitEthernet0/0   ! Ping from specific interface
+Router# traceroute 8.8.8.8
+
+! CDP — discover directly connected Cisco devices
+Router# show cdp neighbors            ! Summary table
+Router# show cdp neighbors detail     ! IPs and IOS versions
+
+! ARP table
+Router# show arp
+Router# show ip arp
+
+! MAC address table (switches)
+Switch# show mac address-table
+Switch# show mac address-table address 00aa.bbcc.ddee
+
+! Spanning Tree
+Switch# show spanning-tree             ! STP state for all VLANs
+Switch# show spanning-tree vlan 10     ! Specific VLAN
+
+! Debug (use carefully — high CPU on production devices)
+Router# debug ip icmp                 ! Show ICMP activity in real time
+Router# debug ip ospf events          ! OSPF state changes
+Router# no debug all                  ! Turn off ALL debugs (or 'undebug all')
+
+! Logging and timestamps
+Router# show logging                  ! View buffered syslog
+Router(config)# service timestamps log datetime msec`}</Pre>
+
+      <InfoBox title="Debug warning" color={RED}>
+        <Code>debug</Code> commands generate output for every matching event and can overwhelm a busy router's CPU. Always turn off with <Code>no debug all</Code> immediately after you've captured what you need, especially on production equipment.
+      </InfoBox>
+
+      {/* ── QUICK REF ── */}
+      <H2>Quick Reference — Most-Used Commands</H2>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+        {[
+          ['show ip interface brief',      'Interface status and IP addresses at a glance'],
+          ['show running-config',          'Current active configuration'],
+          ['show ip route',                'Routing table'],
+          ['show vlan brief',              'VLAN list and port assignments'],
+          ['show interfaces trunk',        'Trunk ports and allowed VLANs'],
+          ['show ip ospf neighbor',        'OSPF neighbour adjacencies'],
+          ['show ip access-lists',         'ACLs with hit counters'],
+          ['show cdp neighbors detail',    'Discover connected Cisco devices'],
+          ['copy running-config startup-config', 'Save config to NVRAM'],
+          ['no debug all',                 'Stop all debug output'],
+        ].map(([cmd, desc]) => (
+          <div key={cmd} style={{ display: 'flex', gap: '0.75rem', padding: '0.65rem 0.9rem', background: '#161b22', border: '1px solid #21262d', borderRadius: 8, alignItems: 'flex-start' }}>
+            <code style={{ fontFamily: 'monospace', fontSize: '0.77rem', color: GOLD, whiteSpace: 'nowrap', flexShrink: 0, minWidth: 0 }}>{cmd}</code>
+            <span style={{ fontSize: '0.77rem', color: '#8b949e', lineHeight: 1.5 }}>{desc}</span>
+          </div>
+        ))}
+      </div>
+
+      <LabCta icon="🌐" name="Gateway & Backup Routes Lab — configure routing in a live topology" href="/app?cat=routing&tool=gatewayLab" color={ACCENT} />
+      <LabCta icon="🔒" name="802.1X Network Access Control — port security in action" href="/app?cat=switching&tool=dot1xLab" color={RED} />
+    </GuideLayout>
+  );
+}
+
+/* ─────────────────────────────────────────────────────────────────
    FAQ PAGE
 ───────────────────────────────────────────────────────────────── */
 export function FaqPage() {
@@ -561,7 +859,7 @@ export function FaqPage() {
   return (
     <div style={{ minHeight: '100vh', background: '#0d1117', color: '#e6edf3', fontFamily: 'system-ui,-apple-system,sans-serif', display: 'flex', flexDirection: 'column' }}>
       <Nav />
-      <div style={{ flex: 1, maxWidth: 800, margin: '0 auto', padding: '3rem 2rem 4rem', width: '100%' }}>
+      <div className="nf-section" style={{ flex: 1, maxWidth: 800, margin: '0 auto', paddingTop: '3rem', paddingBottom: '4rem', width: '100%' }}>
         <div style={{ textAlign: 'center', marginBottom: '3rem' }}>
           <h1 style={{ margin: '0 0 0.6rem', fontSize: 'clamp(1.75rem,4vw,2.25rem)', fontWeight: 900, letterSpacing: '-0.02em' }}>Frequently Asked Questions</h1>
           <p style={{ margin: 0, color: '#8b949e', fontSize: '0.9rem' }}>Can't find the answer? <a href="/contact" style={{ color: ACCENT, textDecoration: 'none' }}>Contact us →</a></p>
@@ -599,7 +897,7 @@ export function ContactPage() {
   return (
     <div style={{ minHeight: '100vh', background: '#0d1117', color: '#e6edf3', fontFamily: 'system-ui,-apple-system,sans-serif', display: 'flex', flexDirection: 'column' }}>
       <Nav />
-      <div style={{ flex: 1, maxWidth: 700, margin: '0 auto', padding: '3rem 2rem 4rem', width: '100%' }}>
+      <div className="nf-section" style={{ flex: 1, maxWidth: 700, margin: '0 auto', paddingTop: '3rem', paddingBottom: '4rem', width: '100%' }}>
         <div style={{ textAlign: 'center', marginBottom: '3rem' }}>
           <h1 style={{ margin: '0 0 0.6rem', fontSize: 'clamp(1.75rem,4vw,2.25rem)', fontWeight: 900, letterSpacing: '-0.02em' }}>Get in Touch</h1>
           <p style={{ margin: 0, color: '#8b949e', lineHeight: 1.7 }}>We aim to respond to all enquiries within 24–48 hours on business days.</p>

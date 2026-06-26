@@ -7,17 +7,28 @@ const LAST_UPDATED = '25 June 2026';
 function LegalLayout({ title, children }: { title: string; children: React.ReactNode }) {
   return (
     <div style={{ minHeight: '100vh', background: '#0d1117', color: '#e6edf3', fontFamily: 'system-ui,-apple-system,sans-serif' }}>
+      <style>{`*,*::before,*::after{box-sizing:border-box}body{overflow-x:hidden}.nf-section{padding-left:2rem!important;padding-right:2rem!important}@media(max-width:640px){.nf-section{padding-left:1rem!important;padding-right:1rem!important}}`}</style>
       {/* Nav */}
-      <div style={{ borderBottom: '1px solid #21262d', padding: '0.9rem 2rem', display: 'flex', alignItems: 'center', justifyContent: 'space-between', position: 'sticky', top: 0, background: '#010409', zIndex: 10 }}>
+      <div className="nf-section" style={{ borderBottom: '1px solid #21262d', paddingTop: '0.9rem', paddingBottom: '0.9rem', display: 'flex', alignItems: 'center', justifyContent: 'space-between', position: 'sticky', top: 0, background: '#010409', zIndex: 10 }}>
         <a href="/" style={{ display: 'flex', alignItems: 'center', gap: 10, textDecoration: 'none' }}>
-          <div style={{ width: 28, height: 28, borderRadius: 8, background: `linear-gradient(135deg,${ACCENT},#a855f7)`, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '0.9rem' }}>🌐</div>
+          <svg width="28" height="28" viewBox="0 0 200 200" fill="none" xmlns="http://www.w3.org/2000/svg" style={{ borderRadius: 8, flexShrink: 0 }}>
+            <defs><linearGradient id="nfbg2" x1="0" y1="0" x2="200" y2="200" gradientUnits="userSpaceOnUse"><stop offset="0%" stopColor={ACCENT}/><stop offset="100%" stopColor="#a855f7"/></linearGradient></defs>
+            <rect width="200" height="200" rx="40" fill="url(#nfbg2)"/>
+            <line x1="100" y1="82" x2="100" y2="55" stroke="white" strokeWidth="10" strokeOpacity="0.75" strokeLinecap="round"/>
+            <line x1="86" y1="110" x2="62" y2="125" stroke="white" strokeWidth="10" strokeOpacity="0.75" strokeLinecap="round"/>
+            <line x1="114" y1="110" x2="138" y2="125" stroke="white" strokeWidth="10" strokeOpacity="0.75" strokeLinecap="round"/>
+            <circle cx="100" cy="42" r="13" fill="white" fillOpacity="0.85"/>
+            <circle cx="50" cy="135" r="13" fill="white" fillOpacity="0.85"/>
+            <circle cx="150" cy="135" r="13" fill="white" fillOpacity="0.85"/>
+            <circle cx="100" cy="100" r="20" fill="white"/>
+          </svg>
           <span style={{ fontWeight: 800, fontSize: '1rem', color: '#e6edf3' }}>NetForge</span>
         </a>
         <a href="/" style={{ fontSize: '0.78rem', color: '#8b949e', textDecoration: 'none', border: '1px solid #21262d', padding: '0.35rem 0.85rem', borderRadius: 8, transition: 'color 0.15s' }}>← Back to app</a>
       </div>
 
       {/* Content */}
-      <div style={{ maxWidth: 780, margin: '0 auto', padding: '3rem 2rem 5rem' }}>
+      <div className="nf-section" style={{ maxWidth: 780, margin: '0 auto', paddingTop: '3rem', paddingBottom: '5rem' }}>
         <p style={{ margin: '0 0 0.4rem', fontSize: '0.72rem', fontWeight: 700, color: ACCENT, textTransform: 'uppercase', letterSpacing: '0.1em' }}>Legal</p>
         <h1 style={{ margin: '0 0 0.5rem', fontSize: '2rem', fontWeight: 900, letterSpacing: '-0.02em' }}>{title}</h1>
         <p style={{ margin: '0 0 3rem', fontSize: '0.8rem', color: '#6e7681' }}>Last updated: {LAST_UPDATED}</p>
