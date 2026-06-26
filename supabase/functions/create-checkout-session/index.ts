@@ -50,6 +50,8 @@ Deno.serve(async (req) => {
       mode: 'payment',
       customer_email: user.email,
       line_items: [{ price: priceId, quantity: 1 }],
+      allow_promotion_codes: true,
+      payment_method_collection: 'if_required', // skips card form for 100%-off codes
       success_url: `${origin}?payment=success`,
       cancel_url: origin,
       metadata: { user_id: user.id, product },
