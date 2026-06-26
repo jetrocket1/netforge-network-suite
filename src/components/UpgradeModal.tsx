@@ -96,10 +96,25 @@ export function UpgradeModal({ onClose, T, defaultProduct, isPro = false, hasExa
     setError('');
     try { localStorage.setItem('nf-pending-product', selected); } catch {}
     try {
+      // Ensure the session token is fresh — an expired JWT causes a 422 at the gateway
+      // before the function even runs. getSession() triggers a silent refresh if needed.
+      const { data: sessionData, error: sessionErr } = await supabase.auth.getSession();
+      if (sessionErr || !sessionData.session) {
+        setError('Your session has expired. Please sign in again.');
+        setLoading(false);
+        return;
+      }
+
       const { data, error: fnErr } = await supabase.functions.invoke('create-checkout-session', {
         body: { product: selected },
       });
-      if (fnErr || !data?.url) throw new Error((fnErr as Error)?.message ?? 'No checkout URL returned');
+
+      if (fnErr) {
+        // Try to extract the actual message from the function's response body
+        const body = await (fnErr as unknown as { context?: Response }).context?.json().catch(() => null);
+        throw new Error(body?.error ?? 'Could not start checkout. Please try again.');
+      }
+      if (!data?.url) throw new Error('No checkout URL returned');
       window.location.href = data.url as string;
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Something went wrong');
